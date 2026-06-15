@@ -1,0 +1,6 @@
+{
+  "name": "Fast Keno",
+  "description": "A high-performance casino-style web clone of the Fast Keno game featuring real-time draw configurations, bet tickets simulations, live timers, and detailed statistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
