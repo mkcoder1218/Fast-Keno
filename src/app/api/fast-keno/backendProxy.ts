@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND_API_BASE = 'http://localhost:4000/api';
+const DEFAULT_BACKEND_API_BASE = 'https://api.king5.bet/api';
 
 export function getBackendApiBase(value?: string | null) {
   const raw = String(
