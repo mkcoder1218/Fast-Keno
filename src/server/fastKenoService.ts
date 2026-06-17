@@ -34,7 +34,7 @@ interface FastKenoState {
 const DATA_DIR = path.join(process.cwd(), '.data');
 const DATA_FILE = path.join(DATA_DIR, 'fast-keno.json');
 const DEFAULT_BALANCE = 10000;
-const DRAW_SECONDS = 40;
+const DRAW_SECONDS = 60;
 
 const ENCRYPTED_PAY_TABLE = {
   iv: 'MjAyNDA2MTZmYXN0a2Vu',
@@ -142,7 +142,7 @@ function publicTickets(state: FastKenoState, userId: string) {
 }
 
 function syncBalance(state: FastKenoState, userId: string, seededBalance?: number | null) {
-  if (Number.isFinite(seededBalance)) {
+  if (state.balances[userId] === undefined && Number.isFinite(seededBalance)) {
     state.balances[userId] = money(Number(seededBalance));
     writeState(state);
     return;

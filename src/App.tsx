@@ -32,9 +32,12 @@ import {
 
 export default function App() {
   const DRAW_COUNT = 20;
+  const DRAW_SECONDS = 60;
   const launchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const launchUserId = launchParams?.get('userId') || '881426785';
   const launchBalance = Number(launchParams?.get('balance') || 90.37);
+  const launchAuthToken = launchParams?.get('authToken') || '';
+  const launchBackendApiBase = launchParams?.get('backendApiBase') || '';
   const shortUserId = launchUserId.length > 8 ? launchUserId.slice(-8) : launchUserId;
 
   // Gameplay States
@@ -74,7 +77,7 @@ export default function App() {
   const [coldNumbers, setColdNumbers] = useState<HotColdNumber[]>(COLD_NUMBERS);
 
   // Timer & Ball Extraction State
-  const [countdown, setCountdown] = useState<number>(40);
+  const [countdown, setCountdown] = useState<number>(DRAW_SECONDS);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [isPlacingBet, setIsPlacingBet] = useState<boolean>(false);
   const [activeDrawnNumbers, setActiveDrawnNumbers] = useState<number[]>([]);
@@ -100,6 +103,12 @@ export default function App() {
     let mounted = true;
 
     const currentParams = new URLSearchParams({ userId });
+    if (launchAuthToken) {
+      currentParams.set('authToken', launchAuthToken);
+    }
+    if (launchBackendApiBase) {
+      currentParams.set('backendApiBase', launchBackendApiBase);
+    }
     if (Number.isFinite(launchBalance)) {
       currentParams.set('balance', String(launchBalance));
     }
@@ -109,7 +118,9 @@ export default function App() {
       .then((data) => {
         if (!mounted || !data?.ok) return;
         const payload = data.payload;
-        setBalance(payload.balance);
+        if (payload.balance !== null && payload.balance !== undefined) {
+          setBalance(payload.balance);
+        }
         setTickets(payload.tickets.length ? payload.tickets : INITIAL_TICKETS);
         setDrawResults(payload.draws.length ? payload.draws.map((draw: any) => ({
           drawId: draw.drawId,
@@ -120,7 +131,7 @@ export default function App() {
           setPayTable(payload.payTable);
         }
         setCurrentDrawId(payload.round.drawId);
-        setCountdown(Math.max(1, Math.min(40, Number(payload.round.secondsRemaining || 40))));
+        setCountdown(Math.max(1, Math.min(DRAW_SECONDS, Number(payload.round.secondsRemaining || DRAW_SECONDS))));
       })
       .catch(() => {
         triggerToast('Local Fast Keno service is not reachable yet.', 'error');
@@ -168,13 +179,20 @@ export default function App() {
       const res = await fetch('/api/fast-keno/settle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, drawId: currentDrawId }),
+        body: JSON.stringify({
+          userId,
+          drawId: currentDrawId,
+          authToken: launchAuthToken,
+          backendApiBase: launchBackendApiBase,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.message || 'Draw failed');
 
       settledRoundRef.current = data.payload;
-      fullCombination = data.payload.draw.combination;
+      if (Array.isArray(data.payload?.draw?.combination)) {
+        fullCombination = data.payload.draw.combination;
+      }
     } catch (error) {
       triggerToast(error instanceof Error ? error.message : 'Draw failed on local service.', 'error');
     }
@@ -205,7 +223,10 @@ export default function App() {
       : 0;
 
     if (serviceResult) {
-      setBalance(Number(serviceResult.balance || 0));
+      const nextBalance = Number(serviceResult.balance);
+      if (Number.isFinite(nextBalance)) {
+        setBalance(nextBalance);
+      }
       setTickets(serviceResult.tickets);
       setDrawResults(serviceResult.draws.map((draw: any) => ({
         drawId: draw.drawId,
@@ -254,18 +275,27 @@ export default function App() {
 
     updateStatistics(combination);
     simulateLeaderboardActivity(combination);
+    setSelectedNumbers([]);
 
-    fetch(`/api/fast-keno/current?userId=${encodeURIComponent(userId)}`)
+    const nextRoundParams = new URLSearchParams({ userId });
+    if (launchAuthToken) {
+      nextRoundParams.set('authToken', launchAuthToken);
+    }
+    if (launchBackendApiBase) {
+      nextRoundParams.set('backendApiBase', launchBackendApiBase);
+    }
+
+    fetch(`/api/fast-keno/current?${nextRoundParams.toString()}`)
       .then((res) => res.json())
       .then((data) => {
         if (!data?.ok) return;
         setCurrentDrawId(data.payload.round.drawId);
-        setCountdown(Math.max(1, Math.min(40, Number(data.payload.round.secondsRemaining || 40))));
+        setCountdown(Math.max(1, Math.min(DRAW_SECONDS, Number(data.payload.round.secondsRemaining || DRAW_SECONDS))));
       })
       .catch(() => {
         setCurrentDrawId(String(Number(currentDrawId) + 1));
       });
-    setCountdown(40);
+    setCountdown(DRAW_SECONDS);
     setIsDrawing(false);
   };
 
@@ -372,7 +402,13 @@ export default function App() {
       const res = await fetch('/api/fast-keno/bets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, selectedNumbers: placedNumbers, betAmount }),
+        body: JSON.stringify({
+          userId,
+          selectedNumbers: placedNumbers,
+          betAmount,
+          authToken: launchAuthToken,
+          backendApiBase: launchBackendApiBase,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.message || 'Bet failed');
@@ -430,9 +466,9 @@ export default function App() {
       
       {/* Top 45px Mobile header (visible ONLY on mobile) */}
       {isMobile && (
-        <div className="w-full h-[45px] bg-[#11191a] border-b border-[#1e2a2c] flex items-center justify-between px-3 shrink-0 z-30" id="mobile-top-header">
+        <div className="w-full h-[45px] bg-[#11191a] border-b border-[#1e2a2c] flex items-center justify-between gap-2 px-3 shrink-0 z-30" id="mobile-top-header">
           {/* FASTKENO logo left */}
-          <div className="flex items-center">
+          <div className="flex min-w-0 items-center">
             <h1 
               className="leading-none text-center inline-flex items-center justify-center font-black"
               style={{
@@ -454,7 +490,7 @@ export default function App() {
           </div>
 
           {/* Balance pill center-left & ID text */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
             <div
               className="bg-transparent border border-[#39d98a] px-2.5 py-0.5 rounded-full flex items-center justify-center gap-0.5 h-6"
             >
@@ -464,7 +500,7 @@ export default function App() {
               <span className="text-[8px] text-[#bfccd0] font-bold ml-0.5 leading-none mt-0.5">ETB</span>
             </div>
 
-            <span className="text-[9px] font-mono text-zinc-500 font-bold">ID: {shortUserId}</span>
+            <span className="min-w-0 truncate text-[9px] font-mono text-zinc-500 font-bold">ID: {shortUserId}</span>
           </div>
 
           {/* Hamburger right */}
@@ -501,7 +537,7 @@ export default function App() {
       </div>
 
       {/* Main Game Frame Container */}
-      <div className="w-full sm:w-[94vw] max-w-[1540px] min-h-0 sm:min-h-[760px] mx-auto py-1.5 px-3 sm:px-2 flex flex-col justify-start relative z-20 overflow-x-hidden" id="game-stage">
+      <div className="w-full sm:w-[94vw] max-w-[1540px] min-h-0 sm:min-h-[760px] mx-auto py-1.5 px-2 sm:px-2 flex flex-col justify-start relative z-20 overflow-x-hidden" id="game-stage">
         
         {!isMobile ? (
           /* Exact 3-column composition starting near same top level for desktop */

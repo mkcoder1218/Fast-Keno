@@ -39,6 +39,12 @@ export default function MiddlePanel({
   countdown,
   payTable,
 }: MiddlePanelProps) {
+  const [betInputValue, setBetInputValue] = React.useState(String(betAmount));
+
+  React.useEffect(() => {
+    setBetInputValue(String(betAmount));
+  }, [betAmount]);
+
   const getTiers = React.useCallback((pickCount: number) => {
     const table = payTable[pickCount] || payTable[5] || {};
     return Object.entries(table)
@@ -173,6 +179,25 @@ export default function MiddlePanel({
     onBetAmountChange(newBet);
   };
 
+  const commitBetInputValue = (value: string) => {
+    const numericValue = Number(value);
+    const nextBet = Number.isFinite(numericValue)
+      ? Math.max(1, Math.min(5000, Math.round(numericValue)))
+      : 1;
+    setBetInputValue(String(nextBet));
+    onBetAmountChange(nextBet);
+  };
+
+  const handleBetInputChange = (value: string) => {
+    if (value === '') {
+      setBetInputValue('');
+      return;
+    }
+
+    if (!/^\d+$/.test(value)) return;
+    setBetInputValue(value);
+  };
+
   const setMaxBet = () => {
     playClickSound();
     onBetAmountChange(5000);
@@ -197,7 +222,7 @@ export default function MiddlePanel({
     return null;
   };
 
-  // Format countdown like digital e.g. 00 : 40
+  // Format countdown like digital e.g. 01 : 00
   const formatTimer = (secs: number) => {
     const mins = Math.floor(secs / 60).toString().padStart(2, '0');
     const remainder = (secs % 60).toString().padStart(2, '0');
@@ -481,10 +506,10 @@ export default function MiddlePanel({
         /* ==================== NORMAL BETTING MODE PANEL ==================== */
         <>
           {/* Top Header Row carrying Logo, Timer and Burger Menu */}
-          <div className="relative w-full h-[40px] md:h-[61px] shrink-0" id="middle-logo-header">
+          <div className="relative w-full h-[30px] md:h-[61px] shrink-0" id="middle-logo-header">
             {/* FAST KENO brand name (hidden on mobile, handled by main header) */}
             <h1 
-              className="absolute left-1/2 -select-none leading-none text-center inline-flex items-center justify-center font-black hidden md:inline-flex"
+              className="absolute left-1/2 hidden -select-none items-center justify-center text-center font-black leading-none md:flex"
               style={{
                 fontFamily: '"Arial Black", "Impact", sans-serif',
                 fontStyle: 'italic',
@@ -505,7 +530,7 @@ export default function MiddlePanel({
             </h1>
 
             {/* Digital Timer Clock with cyan outer shadow glow */}
-            <div className="absolute left-1/2 -translate-x-1/2 top-[8px] md:top-[34px] text-center flex items-center justify-center select-none w-[120px] h-[28px]">
+            <div className="absolute left-1/2 -translate-x-1/2 top-0 md:top-[34px] text-center flex items-center justify-center select-none w-[120px] h-[28px]">
               {/* Soft background glow horizontal flare */}
               <div 
                 className="absolute inset-0 bg-[#06b6d4]/10 blur-[8px] rounded-full scale-y-[0.3]" 
@@ -515,7 +540,7 @@ export default function MiddlePanel({
                 className="tracking-[0.05em] relative z-10" 
                 style={{ 
                   fontFamily: '"Share Tech Mono", "Orbitron", monospace',
-                  fontSize: '22px',
+                  fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '20px' : '22px',
                   fontWeight: 700,
                   color: '#f3ffff',
                   textShadow: '0 0 4px rgba(6,182,212,0.4)'
@@ -536,7 +561,7 @@ export default function MiddlePanel({
           </div>
 
           {/* Header instructions / Live drawn balls container - height around 125px on mobile, 132px on desktop */}
-          <div className="bg-[#263335] rounded-[5px] h-[125px] md:h-[132px] relative overflow-visible flex flex-col justify-center px-3 mt-1.5" id="middle-header">
+          <div className="bg-[#263335] rounded-[5px] h-[124px] md:h-[132px] relative overflow-hidden flex flex-col justify-center px-3 mt-0.5 md:mt-1.5" id="middle-header">
             {selectedNumbers.length > 0 ? (
               /* Ticket Preview / Possible Win Panel */
               <div className="w-full h-full flex flex-col justify-between pr-[32px] pt-[12px] pb-[12px] relative z-10" id="selected-ticket-preview">
@@ -708,7 +733,7 @@ export default function MiddlePanel({
 
           {/* Exact 10 column by 8 rows square button grid tightly packed */}
           <div 
-            className="grid grid-cols-10 gap-[1.5px] bg-[#11191c] p-[1.5px] rounded-[4px] border border-[#11191c] mt-[10px] md:mt-[20px]"
+            className="grid grid-cols-10 gap-[1.5px] bg-[#11191c] p-[1.5px] rounded-[4px] border border-[#11191c] mt-[8px] md:mt-[20px]"
             id="keno-numbers-grid"
           >
             {Array.from({ length: 80 }).map((_, index) => {
@@ -721,7 +746,7 @@ export default function MiddlePanel({
                   key={num}
                   onClick={() => onToggleNumber(num)}
                   disabled={isDrawing}
-                  className={`h-[44px] md:h-[55px] flex flex-col items-center justify-center relative overflow-hidden select-none outline-none rounded-[2px] transition-all ${
+                  className={`h-[clamp(38px,9vw,44px)] md:h-[55px] flex flex-col items-center justify-center relative overflow-hidden select-none outline-none rounded-[2px] transition-all ${
                     isDrawing ? 'cursor-not-allowed' : 'cursor-pointer'
                   } ${
                     isDrawn && isSelected
@@ -753,21 +778,34 @@ export default function MiddlePanel({
               <div className="flex items-center bg-[#1e2a2e]/60 rounded border border-[#2e3e43]/30 px-1 py-0.5 gap-0.5 flex-1 md:flex-initial justify-between md:justify-start">
                 {/* Minus Button */}
                 <button
-                  onClick={() => handleIncrement(-10)}
-                  disabled={betAmount <= 10}
+                  onClick={() => handleIncrement(-2)}
+                  disabled={betAmount <= 1}
                   className="w-8 h-8 rounded text-white text-[18px] font-bold hover:bg-[#2c3d44]/50 disabled:opacity-20 cursor-pointer active:scale-95 flex items-center justify-center transition-colors select-none"
                 >
                   -
                 </button>
 
-                {/* Stake readout box */}
-                <div className="px-3 min-w-[50px] text-center flex items-center justify-center">
-                  <span className="text-white font-mono text-[14px] font-bold tracking-tight">{betAmount}</span>
-                </div>
+                {/* Stake input */}
+                <input
+                  type="number"
+                  min={1}
+                  max={5000}
+                  step={2}
+                  value={betInputValue}
+                  onChange={(event) => handleBetInputChange(event.target.value)}
+                  onBlur={(event) => commitBetInputValue(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className="h-8 min-w-[50px] flex-1 bg-transparent px-2 text-center font-mono text-[14px] font-bold tracking-tight text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  aria-label="Bet amount"
+                />
 
                 {/* Plus Button */}
                 <button
-                  onClick={() => handleIncrement(10)}
+                  onClick={() => handleIncrement(2)}
                   disabled={betAmount >= 5000}
                   className="w-8 h-8 rounded text-white text-[18px] font-bold hover:bg-[#2c3d44]/50 disabled:opacity-20 cursor-pointer active:scale-95 flex items-center justify-center transition-colors select-none"
                 >
