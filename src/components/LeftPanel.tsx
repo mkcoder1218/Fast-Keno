@@ -6,23 +6,14 @@ interface LeftPanelProps {
   balance: number;
   userId: string;
   tickets: Ticket[];
+  placingTicketIds?: string[];
   onClearHistory: () => void;
-  onQuickAddFunds: () => void;
   forceTab?: 'GAME' | 'HISTORY';
   hideHeader?: boolean;
 }
 
 type TabType = 'GAME' | 'HISTORY';
 type SubTabType = 'All' | 'My Tickets' | 'My Bets';
-
-interface MockTicket {
-  id: string;
-  displayMask: string;
-  selectedNumbers: number[];
-  greenNumbers?: number[];
-  betAmountText: string;
-  status: 'Waiting' | 'Won' | 'Missed';
-}
 
 const ShieldCheckTiny = () => (
   <svg viewBox="0 0 24 24" fill="none" className="w-[12px] h-[12px] text-[#39d98a] shrink-0" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
@@ -31,26 +22,12 @@ const ShieldCheckTiny = () => (
   </svg>
 );
 
-// High fidelity replica mock tickets matching the real screenshot
-const GAME_MOCK_TICKETS: MockTicket[] = [
-  { id: 'm1', displayMask: '7***6', selectedNumbers: [76, 23, 32, 15], betAmountText: 'Bet 1 200', status: 'Waiting' },
-  { id: 'm2', displayMask: '7***2', selectedNumbers: [76, 77, 78], betAmountText: 'Bet 500', status: 'Waiting' },
-  { id: 'm3', displayMask: '7***2', selectedNumbers: [77, 78, 79], betAmountText: 'Bet 500', status: 'Waiting' },
-  { id: 'm4', displayMask: '3***0', selectedNumbers: [15, 16, 17], betAmountText: 'Bet 500', status: 'Waiting' },
-  { id: 'm5', displayMask: '2***5', selectedNumbers: [38, 28, 48], greenNumbers: [48], betAmountText: 'Bet 500', status: 'Waiting' },
-  { id: 'm6', displayMask: '3***0', selectedNumbers: [52, 53], betAmountText: 'Bet 500', status: 'Waiting' },
-  { id: 'm7', displayMask: '3***0', selectedNumbers: [22, 12, 2], greenNumbers: [2], betAmountText: 'Bet 500', status: 'Waiting' },
-  { id: 'm8', displayMask: '2***5', selectedNumbers: [9, 10, 11], betAmountText: 'Bet 500', status: 'Waiting' },
-  { id: 'm9', displayMask: '4***1', selectedNumbers: [66, 67, 68], betAmountText: 'Bet 500', status: 'Waiting' },
-  { id: 'm10', displayMask: '5***8', selectedNumbers: [50, 60], betAmountText: 'Bet 1 500', status: 'Waiting' },
-];
-
 export default function LeftPanel({
   balance,
   userId,
   tickets,
+  placingTicketIds = [],
   onClearHistory,
-  onQuickAddFunds,
   forceTab,
   hideHeader,
 }: LeftPanelProps) {
@@ -67,9 +44,7 @@ export default function LeftPanel({
   // Active placed tickets (from state)
   const activePlacedTickets = tickets.filter(t => t.status === 'Waiting');
   const pastPlacedTickets = tickets.filter(t => t.status !== 'Waiting');
-
-  // All gaming tickets (placed user tickets + high quality mocks)
-  const allGameTickets = [...activePlacedTickets, ...GAME_MOCK_TICKETS];
+  const wonTickets = pastPlacedTickets.filter((t) => t.status === 'Won');
 
   return (
     <div className="flex flex-col h-full bg-[#11191a] border border-[#1e2a2c] p-2 text-zinc-100 uppercase select-none rounded-md" id="left-panel">
@@ -88,6 +63,15 @@ export default function LeftPanel({
         .visible-thin-scrollbar-left::-webkit-scrollbar-thumb:hover {
           background: #39d98a;
         }
+        @keyframes ticket-sweep {
+          0% { transform: translateX(-120%); opacity: 0; }
+          20% { opacity: 1; }
+          100% { transform: translateX(140%); opacity: 0; }
+        }
+        @keyframes ticket-pop {
+          0%, 100% { transform: scale(0.88) rotate(-10deg); opacity: 0.7; }
+          50% { transform: scale(1.08) rotate(0deg); opacity: 1; }
+        }
       `}</style>
 
       {/* Top Wallet & User ID row precisely as screenshot - 40px high */}
@@ -95,22 +79,20 @@ export default function LeftPanel({
         <>
           <div className="flex items-center justify-between h-9 mb-1.5 px-0.5">
             {/* Balance Yellow Capsule Pill */}
-            <button
-              onClick={onQuickAddFunds}
-              className="bg-transparent border border-[#39d98a] px-3 py-1 rounded-full text-left cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1 hover:bg-[#39d98a]/5 h-7"
-              title="Click to double balance (Demo Mode)"
+            <div
+              className="bg-transparent border border-[#39d98a] px-3 py-1 rounded-full flex items-center justify-center gap-1 h-7"
               id="balance-button"
             >
               <span className="text-[#facc15] text-[13px] font-black tracking-wide font-mono leading-none">
                 {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               <span className="text-[9px] text-[#bfccd0] font-bold ml-0.5 leading-none mt-0.5">ETB</span>
-            </button>
+            </div>
 
             {/* User ID display on same row */}
             <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-350" id="user-id-badge">
               <span className="text-zinc-500 font-bold">ID:</span>
-              <span className="font-bold">881428744</span>
+              <span className="font-bold">{userId}</span>
               <ShieldCheckTiny />
             </div>
           </div>
@@ -159,7 +141,7 @@ export default function LeftPanel({
           >
             <span>All</span>
             <span className="text-[#39d98a] font-black font-mono">
-              {activeTab === 'GAME' ? 2481 + activePlacedTickets.length : 182 + pastPlacedTickets.length}
+              {activeTab === 'GAME' ? activePlacedTickets.length : pastPlacedTickets.length}
             </span>
           </button>
           
@@ -202,22 +184,32 @@ export default function LeftPanel({
       {/* Scroller Area of compact tickets */}
       <div className="flex-1 overflow-y-auto space-y-1 pr-1.5 visible-thin-scrollbar-left" id="tickets-list">
         {activeTab === 'GAME' ? (
-          // GAME VIEW (Always full, with combined Mock Tickets + User Active placed tickets)
-          (activeSubTab === 'All' ? allGameTickets : activePlacedTickets).map((ticket, idx) => {
-            const isMock = 'displayMask' in ticket;
-            const displayMask = isMock ? (ticket as any).displayMask : `USER***${ticket.id.slice(-3)}`;
+          (activeSubTab === 'All' ? activePlacedTickets : activePlacedTickets).map((ticket, idx) => {
+            const displayMask = `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
-            const greenNums = (ticket as any).greenNumbers || [];
-            const betText = (ticket as any).betAmountText || `Bet ${(ticket as any).betAmount}`;
+            const greenNums: number[] = [];
+            const betText = `Bet ${ticket.betAmount}`;
+            const isPlacing = placingTicketIds.includes(ticket.id);
+            const myTicketLabel = `${Math.max(1, activePlacedTickets.length - idx)} My Ticket`;
 
             return (
               <div
                 key={ticket.id + '-' + idx}
-                className="bg-[#1f2b2e] p-1.5 rounded-[4px] border border-[#2b3a3d]/20 transition-all text-xs"
+                className={`p-1.5 rounded-[4px] border transition-all text-xs relative overflow-hidden ${
+                  isPlacing
+                    ? 'bg-[#245135] border-[#3f8b5f] shadow-[0_0_0_1px_rgba(104,219,146,0.18)]'
+                    : 'bg-[#1f2b2e] border-[#2b3a3d]/20'
+                }`}
               >
+                {isPlacing && (
+                  <>
+                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(165,255,208,0.08)_35%,rgba(255,255,255,0.16)_50%,rgba(165,255,208,0.08)_65%,transparent_100%)] animate-[ticket-sweep_1s_ease-in-out_infinite]" />
+                    <div className="pointer-events-none absolute right-2 bottom-2 text-white text-[18px] animate-[ticket-pop_0.65s_ease-in-out_infinite]">✓</div>
+                  </>
+                )}
                 {/* Compact Row 1: Username mask */}
-                <div className="text-[#39d98a] text-[10px] font-extrabold tracking-wide font-mono mb-1">
-                  {displayMask}
+                <div className={`text-[10px] font-extrabold tracking-wide font-mono mb-1 ${isPlacing ? 'text-[#7ff0a6]' : 'text-[#39d98a]'}`}>
+                  {isPlacing ? myTicketLabel : displayMask}
                 </div>
 
                 {/* Compact Row 2: Selected numbers in small cubes (22px x 20px) */}
@@ -230,6 +222,8 @@ export default function LeftPanel({
                         className={`w-[21px] h-[19px] rounded-[1.5px] flex items-center justify-center text-[10px] font-mono font-bold shrink-0 ${
                           isGreen
                             ? 'bg-[#39d98a] text-black'
+                            : isPlacing
+                            ? 'bg-[#3c6f4c] text-[#f2fff8]'
                             : 'bg-[#34454b] text-[#bfccd0]'
                         }`}
                       >
@@ -242,18 +236,18 @@ export default function LeftPanel({
                   {Array.from({ length: Math.max(0, 10 - nums.length) }).map((_, i) => (
                     <div
                       key={i}
-                      className="w-[21px] h-[19px] rounded-[1.5px] bg-[#182325] shrink-0"
+                      className={`w-[21px] h-[19px] rounded-[1.5px] shrink-0 ${isPlacing ? 'bg-[#2b5b3d]' : 'bg-[#182325]'}`}
                     ></div>
                   ))}
                 </div>
 
                 {/* Compact Row 3: Horizontal segmented bar */}
                 <div className="grid grid-cols-2 gap-[1.5px] text-[11px] font-mono font-bold">
-                  <div className="bg-[#141b1d] py-[2.5px] px-2 text-white flex items-center justify-start rounded-l-[2.5px]">
+                  <div className={`${isPlacing ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-white flex items-center justify-start rounded-l-[2.5px]`}>
                     {betText}
                   </div>
-                  <div className="bg-[#141b1d] py-[2.5px] px-2 text-right flex items-center justify-end rounded-r-[2.5px]">
-                    <span className="text-[#facc15] font-extrabold uppercase text-[10px]">
+                  <div className={`${isPlacing ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-right flex items-center justify-end rounded-r-[2.5px]`}>
+                    <span className={`font-extrabold uppercase text-[10px] ${isPlacing ? 'text-[#7ff0a6] animate-pulse' : 'text-[#facc15]'}`}>
                       Waiting
                     </span>
                   </div>
@@ -262,30 +256,29 @@ export default function LeftPanel({
             );
           })
         ) : (
-          // HISTORY TAB VIEW: Past games / Draws Results (Mock or Real Results)
-          (activeSubTab === 'All' ? (pastPlacedTickets.length > 0 ? pastPlacedTickets : [
-            { id: 'h1', drawId: '8024921', selectedNumbers: [76, 23, 32, 15], betAmount: 1200, status: 'Won', winAmount: 2400 },
-            { id: 'h2', drawId: '8024920', selectedNumbers: [5, 10, 20], betAmount: 500, status: 'Missed', winAmount: 0 },
-          ]) : pastPlacedTickets).map((ticket, idx) => {
+          (activeSubTab === 'All' ? pastPlacedTickets : pastPlacedTickets).map((ticket, idx) => {
             const displayMask = `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
             const isWon = ticket.status === 'Won';
+            const payoutText = ((ticket as any).winAmount || 0).toLocaleString('en-US');
+            const wonIndex = isWon ? wonTickets.findIndex((t) => t.id === ticket.id) : -1;
+            const wonTicketLabel = wonIndex >= 0 ? `${Math.max(1, wonTickets.length - wonIndex)} My Ticket` : displayMask;
 
             return (
               <div
                 key={ticket.id + '-' + idx}
-                className="bg-[#1f2b2e] p-1.5 rounded-[4px] border border-[#2b3a3d]/20 transition-all text-xs"
+                className={`${isWon ? 'bg-[#245135] border-[#3f8b5f]' : 'bg-[#1f2b2e] border-[#2b3a3d]/20'} p-1.5 rounded-[4px] border transition-all text-xs`}
               >
-                <div className="text-[#39d98a] text-[10px] font-extrabold tracking-wide font-mono mb-1 flex items-center justify-between">
-                  <span>{displayMask}</span>
-                  <span className="text-zinc-500 font-normal">#{ticket.drawId}</span>
+                <div className={`text-[10px] font-extrabold tracking-wide font-mono mb-1 flex items-center justify-between ${isWon ? 'text-[#7ff0a6]' : 'text-[#39d98a]'}`}>
+                  <span>{wonTicketLabel}</span>
+                  <span className={`${isWon ? 'text-[#a7d8ba]' : 'text-zinc-500'} font-normal`}>#{ticket.drawId}</span>
                 </div>
 
                 <div className="flex flex-wrap gap-[3px] mb-1.5">
                   {nums.map((num) => (
                     <div
                       key={num}
-                      className="w-[21px] h-[19px] rounded-[1.5px] flex items-center justify-center text-[10px] font-mono font-bold shrink-0 bg-[#34454b] text-[#bfccd0]"
+                      className={`w-[21px] h-[19px] rounded-[1.5px] flex items-center justify-center text-[10px] font-mono font-bold shrink-0 ${isWon ? 'bg-[#3c6f4c] text-[#f2fff8]' : 'bg-[#34454b] text-[#bfccd0]'}`}
                     >
                       {num}
                     </div>
@@ -293,19 +286,19 @@ export default function LeftPanel({
                   {Array.from({ length: Math.max(0, 10 - nums.length) }).map((_, i) => (
                     <div
                       key={i}
-                      className="w-[21px] h-[19px] rounded-[1.5px] bg-[#182325] shrink-0"
+                      className={`w-[21px] h-[19px] rounded-[1.5px] shrink-0 ${isWon ? 'bg-[#2b5b3d]' : 'bg-[#182325]'}`}
                     ></div>
                   ))}
                 </div>
 
                 <div className="grid grid-cols-2 gap-[1.5px] text-[11px] font-mono font-bold">
-                  <div className="bg-[#141b1d] py-[2.5px] px-2 text-white flex items-center justify-start rounded-l-[2.5px]">
+                  <div className={`${isWon ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-white flex items-center justify-start rounded-l-[2.5px]`}>
                     Bet {ticket.betAmount}
                   </div>
-                  <div className="bg-[#141b1d] py-[2.5px] px-2 text-right flex items-center justify-end rounded-r-[2.5px]">
+                  <div className={`${isWon ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-right flex items-center justify-end rounded-r-[2.5px]`}>
                     {isWon ? (
                       <span className="text-[#39d98a] font-extrabold uppercase text-[10px]">
-                        WON +{(ticket as any).winAmount || ticket.betAmount * 2}
+                        {payoutText}
                       </span>
                     ) : (
                       <span className="text-zinc-500 font-bold uppercase text-[9px]">

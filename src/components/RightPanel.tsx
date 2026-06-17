@@ -148,14 +148,14 @@ export default function RightPanel({
             <div className="flex flex-col h-full" id="results-tab-content">
               
               {/* Dense Header for columns */}
-              <div className="flex justify-between text-[10px] text-zinc-500 font-mono font-bold px-1.5 mb-1 bg-[#11191a]">
+              <div className="grid grid-cols-[58px_minmax(0,1fr)] gap-1 text-[10px] text-zinc-500 font-mono font-bold px-1.5 mb-1 bg-[#11191a]">
                 <span>draw id</span>
-                <span>combination</span>
+                <span className="text-right">combination</span>
               </div>
 
               {/* Active Draw wait indicator row strictly aligned */}
-              <div className="flex justify-between items-center bg-[#1f2b2e] p-1.5 rounded-[4px] min-h-[38px] mb-[3px] border border-[#2e3e41]/30">
-                <div className="flex items-center gap-1 shrink-0 mr-3">
+              <div className="grid grid-cols-[58px_minmax(0,1fr)] gap-1 items-center bg-[#1f2b2e] p-1.5 rounded-[4px] min-h-[38px] mb-[3px] border border-[#2e3e41]/30">
+                <div className="flex items-center gap-1 min-w-0">
                   <ShieldCheckTiny />
                   <span className="text-[#39d98a] text-[10px] font-mono font-bold tracking-tight">
                     {drawId}
@@ -163,27 +163,14 @@ export default function RightPanel({
                 </div>
 
                 {isDrawing ? (
-                  <div className="grid grid-cols-10 gap-[2px]">
-                    {Array.from({ length: 20 }).map((_, idx) => {
-                      const num = activeDrawnNumbers[idx];
-                      const hasValue = num !== undefined;
-                      return (
-                        <span
-                          key={idx}
-                          className={`w-[18px] h-[15px] rounded-[1.5px] text-[9px] font-mono font-semibold flex items-center justify-center shrink-0 ${
-                            hasValue
-                              ? 'bg-[#3f8d5e] text-[#d7dedc] font-black scale-[1.01]'
-                              : 'bg-[#151c1d] text-zinc-650 font-normal border border-zinc-900'
-                          }`}
-                        >
-                          {hasValue ? num : '•'}
-                        </span>
-                      );
-                    })}
+                  <div className="h-[26px] rounded-[2px] bg-[#4a5b61] flex items-center justify-center min-w-0">
+                    <span className="text-[#bfccd0] font-mono font-black tracking-widest text-[9px]">
+                      WAIT
+                    </span>
                   </div>
                 ) : (
                   /* Center aligned WAIT bar */
-                  <div className="flex-1 h-[26px] rounded-[2px] bg-[#4a5b61] flex items-center justify-center">
+                  <div className="h-[26px] rounded-[2px] bg-[#4a5b61] flex items-center justify-center min-w-0">
                     <span className="text-[#bfccd0] font-mono font-black tracking-widest text-[9px]">
                       WAIT
                     </span>
@@ -197,12 +184,12 @@ export default function RightPanel({
                   <div
                     key={result.drawId}
                     onClick={() => onSelectHistoricCombination(result.combination)}
-                    className="flex justify-between items-center bg-[#1f2b2e] p-1.5 rounded-[4px] min-h-[38px] hover:bg-[#253539] transition-all cursor-pointer border border-[#2a3c41]/15"
+                    className="grid grid-cols-[58px_minmax(0,1fr)] gap-1 items-center bg-[#1f2b2e] p-1.5 rounded-[4px] min-h-[38px] hover:bg-[#253539] transition-all cursor-pointer border border-[#2a3c41]/15"
                     title="Click combination to preview on selection board"
                   >
-                    <div className="flex items-center gap-1 select-none shrink-0 pr-2">
+                    <div className="flex items-center gap-1 select-none min-w-0">
                       <ShieldCheckTiny />
-                      <div className="flex flex-col leading-none">
+                      <div className="flex flex-col leading-none min-w-0">
                         <span className="text-[#39d98a] text-[10px] font-mono font-bold tracking-tight">
                           {result.drawId}
                         </span>
@@ -213,11 +200,11 @@ export default function RightPanel({
                     </div>
 
                     {/* Combinations represented as very small rectangular number boxes on 2 rows */}
-                    <div className="grid grid-cols-10 gap-[2px] shrink-0">
+                    <div className="grid grid-cols-10 gap-[1px] min-w-0 justify-items-end">
                       {result.combination.map((ball) => (
                         <span
                           key={ball}
-                          className="w-[18px] h-[15px] rounded-[1.5px] bg-[#34454b] text-[#bfccd0] text-[9px] font-mono font-semibold flex items-center justify-center shrink-0"
+                          className="w-[15px] h-[14px] rounded-[1.5px] bg-[#34454b] text-[#bfccd0] text-[8px] font-mono font-semibold flex items-center justify-center shrink-0"
                         >
                           {ball}
                         </span>

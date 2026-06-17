@@ -3,13 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  AlertCircle, 
-  X, 
-  Trophy,
-  Info
-} from 'lucide-react';
 import LeftPanel from './components/LeftPanel';
 import MiddlePanel from './components/MiddlePanel';
 import RightPanel from './components/RightPanel';
@@ -21,11 +17,12 @@ import {
   HOT_NUMBERS, 
   COLD_NUMBERS,
   generateRandomCombination,
+  DEFAULT_PAY_TABLE,
   getMultiplier
 } from './data';
+import { PayTable } from './types';
 import { 
   playTickSound, 
-  playDrawBallSound, 
   playWinSound, 
   playLossSound, 
   playClickSound,
@@ -33,29 +30,27 @@ import {
   playDeselectSound
 } from './audio';
 
-const NAV_ITEMS = [
-  'HOME',
-  'SPORT',
-  'LIVE',
-  'GAMES',
-  'LIVE GAMES',
-  'VIRTUAL SPORTS',
-  'COUPON CHECK',
-  'PROMOTIONS',
-];
-
 export default function App() {
+  const DRAW_COUNT = 20;
+  const launchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const launchUserId = launchParams?.get('userId') || '881426785';
+  const launchBalance = Number(launchParams?.get('balance') || 90.37);
+  const shortUserId = launchUserId.length > 8 ? launchUserId.slice(-8) : launchUserId;
+
   // Gameplay States
-  const [balance, setBalance] = useState<number>(90.37);
-  const [userId] = useState<string>('881426785'); // Match screenshot exactly!
+  const [balance, setBalance] = useState<number>(Number.isFinite(launchBalance) ? launchBalance : 90.37);
+  const [userId] = useState<string>(launchUserId);
   const [tickets, setTickets] = useState<Ticket[]>(INITIAL_TICKETS);
   const [drawResults, setDrawResults] = useState<DrawResult[]>(INITIAL_DRAWS);
   const [leaders, setLeaders] = useState<Leader[]>(INITIAL_LEADERS);
+  const [payTable, setPayTable] = useState<PayTable>(DEFAULT_PAY_TABLE);
   
   // Selection States
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
-  const [betAmount, setBetAmount] = useState<number>(500); // Set default bet to 500 supporting 'Bet 500' representation
+  const [betAmount, setBetAmount] = useState<number>(2);
   const [activeNavItem, setActiveNavItem] = useState<string>('GAMES');
+  const [placingTicketIds, setPlacingTicketIds] = useState<string[]>([]);
+  const [betAcceptedFlash, setBetAcceptedFlash] = useState<boolean>(false);
 
   // Viewport states for mobile flexibility
   const [windowWidth, setWindowWidth] = useState<number>(
@@ -67,6 +62,7 @@ export default function App() {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
     };
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -80,17 +76,13 @@ export default function App() {
   // Timer & Ball Extraction State
   const [countdown, setCountdown] = useState<number>(40);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
+  const [isPlacingBet, setIsPlacingBet] = useState<boolean>(false);
   const [activeDrawnNumbers, setActiveDrawnNumbers] = useState<number[]>([]);
   const [currentDrawId, setCurrentDrawId] = useState<string>('8024922');
 
-  // Interactive Toast Overlay state for instant win display
-  const [toastMessage, setToastMessage] = useState<{
-    text: string;
-    type: 'success' | 'info' | 'error';
-  } | null>(null);
-
   // Timer Ref to manage draw interval
   const ballTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const settledRoundRef = useRef<any>(null);
 
   // Bulletproof cleanup of active timers on unmount
   useEffect(() => {
@@ -102,11 +94,42 @@ export default function App() {
     };
   }, []);
 
-  // Show customized success toast helper
-  const triggerToast = (text: string, type: 'success' | 'info' | 'error' = 'info') => {
-    setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 5500);
-  };
+  const triggerToast = (_text: string, _type: 'success' | 'info' | 'error' = 'info') => {};
+
+  useEffect(() => {
+    let mounted = true;
+
+    const currentParams = new URLSearchParams({ userId });
+    if (Number.isFinite(launchBalance)) {
+      currentParams.set('balance', String(launchBalance));
+    }
+
+    fetch(`/api/fast-keno/current?${currentParams.toString()}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!mounted || !data?.ok) return;
+        const payload = data.payload;
+        setBalance(payload.balance);
+        setTickets(payload.tickets.length ? payload.tickets : INITIAL_TICKETS);
+        setDrawResults(payload.draws.length ? payload.draws.map((draw: any) => ({
+          drawId: draw.drawId,
+          time: draw.time,
+          combination: draw.combination,
+        })) : INITIAL_DRAWS);
+        if (payload.payTable) {
+          setPayTable(payload.payTable);
+        }
+        setCurrentDrawId(payload.round.drawId);
+        setCountdown(Math.max(1, Math.min(40, Number(payload.round.secondsRemaining || 40))));
+      })
+      .catch(() => {
+        triggerToast('Local Fast Keno service is not reachable yet.', 'error');
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [userId]);
 
   // Countdown timer ticking trigger
   useEffect(() => {
@@ -130,7 +153,7 @@ export default function App() {
   }, [isDrawing, currentDrawId]);
 
   // Performs 20 numbers drawing sequentially
-  const triggerLiveDrawing = () => {
+  const triggerLiveDrawing = async () => {
     // If a drawing loop is already active, do NOT start another!
     if (ballTimerRef.current) {
       return;
@@ -138,29 +161,24 @@ export default function App() {
     setIsDrawing(true);
     setActiveDrawnNumbers([]);
     
-    const fullCombination = generateRandomCombination(20, 1, 80);
-    let index = 0;
+    let fullCombination = generateRandomCombination(20, 1, 80);
+    settledRoundRef.current = null;
 
-    ballTimerRef.current = setInterval(() => {
-      if (index < 20) {
-        const nextBall = fullCombination[index];
-        setActiveDrawnNumbers((prev) => {
-          // Strictly cap at exactly 20 elements
-          if (prev.length >= 20) {
-            return prev;
-          }
-          return [...prev, nextBall];
-        });
-        playDrawBallSound();
-        index++;
-      } else {
-        if (ballTimerRef.current) {
-          clearInterval(ballTimerRef.current);
-          ballTimerRef.current = null;
-        }
-        finalizeDrawRound(fullCombination);
-      }
-    }, 1000);
+    try {
+      const res = await fetch('/api/fast-keno/settle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, drawId: currentDrawId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.message || 'Draw failed');
+
+      settledRoundRef.current = data.payload;
+      fullCombination = data.payload.draw.combination;
+    } catch (error) {
+      triggerToast(error instanceof Error ? error.message : 'Draw failed on local service.', 'error');
+    }
+    setActiveDrawnNumbers(fullCombination.slice(0, DRAW_COUNT));
   };
 
   // Finalizes round, evaluates win/loss statuses
@@ -180,42 +198,49 @@ export default function App() {
       return [newDrawRecord, ...prev];
     });
 
-    let totalWinnings = 0;
-    let winCountInTickets = 0;
-    let totalMatchedTickets = 0;
+    const serviceResult = settledRoundRef.current;
+    let totalWinnings = Number(serviceResult?.totalWinnings || 0);
+    let totalMatchedTickets = Array.isArray(serviceResult?.tickets)
+      ? serviceResult.tickets.filter((t: Ticket) => t.drawId === currentDrawId).length
+      : 0;
 
-    setTickets((prevTickets) => {
-      return prevTickets.map((t) => {
-        if (t.status !== 'Waiting' || t.drawId !== currentDrawId) return t;
+    if (serviceResult) {
+      setBalance(Number(serviceResult.balance || 0));
+      setTickets(serviceResult.tickets);
+      setDrawResults(serviceResult.draws.map((draw: any) => ({
+        drawId: draw.drawId,
+        time: draw.time,
+        combination: draw.combination,
+      })));
+    } else {
+      setTickets((prevTickets) => {
+        return prevTickets.map((t) => {
+          if (t.status !== 'Waiting' || t.drawId !== currentDrawId) return t;
 
-        const matchedNumbers = t.selectedNumbers.filter((n) => combination.includes(n));
-        const matchedCount = matchedNumbers.length;
-        const multiplier = getMultiplier(t.selectedNumbers.length, matchedCount);
-        
-        let winAmount = 0;
-        let status: 'Won' | 'Missed' = 'Missed';
+          const matchedNumbers = t.selectedNumbers.filter((n) => combination.includes(n));
+          const matchedCount = matchedNumbers.length;
+          const multiplier = getMultiplier(payTable, t.selectedNumbers.length, matchedCount);
+          const winAmount = Math.round(t.betAmount * multiplier);
 
-        if (multiplier > 0) {
-          winAmount = Math.round(t.betAmount * multiplier);
-          status = 'Won';
           totalWinnings += winAmount;
-          winCountInTickets++;
-        }
+          totalMatchedTickets++;
 
-        totalMatchedTickets++;
-
-        return {
-          ...t,
-          status,
-          winAmount,
-          matchedCount,
-          matchedNumbers,
-        };
+          return {
+            ...t,
+            status: winAmount > 0 ? 'Won' : 'Missed',
+            winAmount,
+            matchedCount,
+            matchedNumbers,
+          };
+        });
       });
-    });
+
+      if (totalWinnings > 0) {
+        setBalance((prev) => prev + totalWinnings);
+      }
+    }
 
     if (totalWinnings > 0) {
-      setBalance((prev) => prev + totalWinnings);
       playWinSound();
       triggerToast(
         `🏆 Dynamic Win! You received +${totalWinnings.toLocaleString('en-US')} ETB on your bets!`,
@@ -223,7 +248,6 @@ export default function App() {
       );
     } else if (totalMatchedTickets > 0) {
       playLossSound();
-      triggerToast('💸 Drawing finalized. Better luck next time!', 'error');
     } else {
       triggerToast(`⭐ Round #${currentDrawId} completed successfully. Ready for new bets!`, 'info');
     }
@@ -231,8 +255,16 @@ export default function App() {
     updateStatistics(combination);
     simulateLeaderboardActivity(combination);
 
-    const nextId = String(Number(currentDrawId) + 1);
-    setCurrentDrawId(nextId);
+    fetch(`/api/fast-keno/current?userId=${encodeURIComponent(userId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data?.ok) return;
+        setCurrentDrawId(data.payload.round.drawId);
+        setCountdown(Math.max(1, Math.min(40, Number(data.payload.round.secondsRemaining || 40))));
+      })
+      .catch(() => {
+        setCurrentDrawId(String(Number(currentDrawId) + 1));
+      });
     setCountdown(40);
     setIsDrawing(false);
   };
@@ -265,7 +297,7 @@ export default function App() {
       const luckyPlayer = 'ET***' + Math.floor(10 + Math.random() * 89);
       const randomStake = [100, 200, 500, 1000][Math.floor(Math.random() * 4)];
       const matches = Math.floor(2 + Math.random() * 6);
-      const multiVal = getMultiplier(8, matches);
+      const multiVal = getMultiplier(payTable, 8, matches);
       const totalWin = randomStake * (multiVal || 1);
 
       if (totalWin > 0) {
@@ -321,8 +353,8 @@ export default function App() {
     triggerToast(`⚡ Selected ${count} numbers automatically!`, 'info');
   };
 
-  const handlePlaceBet = () => {
-    if (isDrawing) return;
+  const handlePlaceBet = async () => {
+    if (isDrawing || isPlacingBet) return;
     if (selectedNumbers.length === 0) {
       triggerToast('⚠️ Select some numbers to bet on first!', 'info');
       return;
@@ -333,20 +365,39 @@ export default function App() {
       return;
     }
 
-    setBalance((prev) => prev - betAmount);
+    const placedNumbers = [...selectedNumbers];
 
-    const timeNow = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const newTicket: Ticket = {
-      id: 'T-' + Math.floor(1000 + Math.random() * 9000),
-      drawId: currentDrawId,
-      selectedNumbers: [...selectedNumbers],
-      betAmount: betAmount,
-      timestamp: timeNow,
-      status: 'Waiting',
-    };
+    try {
+      setIsPlacingBet(true);
+      const res = await fetch('/api/fast-keno/bets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, selectedNumbers: placedNumbers, betAmount }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.message || 'Bet failed');
 
-    setTickets((prev) => [newTicket, ...prev]);
-    triggerToast(`🎟️ Stake of ${betAmount} placed successfully for Draw #${currentDrawId}!`, 'success');
+      setBalance(data.payload.balance);
+      setTickets(data.payload.tickets);
+      setCurrentDrawId(data.payload.round.drawId);
+      setSelectedNumbers([]);
+      setBetAcceptedFlash(true);
+      window.setTimeout(() => {
+        setBetAcceptedFlash(false);
+      }, 1400);
+      if (data.payload.ticket?.id) {
+        const nextTicketId = String(data.payload.ticket.id);
+        setPlacingTicketIds((prev) => [...prev.filter((id) => id !== nextTicketId), nextTicketId]);
+        window.setTimeout(() => {
+          setPlacingTicketIds((prev) => prev.filter((id) => id !== nextTicketId));
+        }, 1800);
+      }
+      triggerToast(`Stake of ${betAmount} placed successfully for Draw #${data.payload.round.drawId}!`, 'success');
+    } catch (error) {
+      triggerToast(error instanceof Error ? error.message : 'Bet failed on local service.', 'error');
+    } finally {
+      setIsPlacingBet(false);
+    }
   };
 
   const handleClearHistory = () => {
@@ -355,11 +406,17 @@ export default function App() {
     triggerToast('🧹 Ticket history cleared.', 'info');
   };
 
-  const handleQuickAddFunds = () => {
-    playClickSound();
-    setBalance((prev) => prev + 1000.00);
-    triggerToast('💰 +1,000.00 ETB demo funds added successfully!', 'success');
-  };
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.parent === window) return;
+
+    window.parent.postMessage(
+      {
+        type: 'fast-keno-wallet-sync',
+        payload: { userId, balance },
+      },
+      '*'
+    );
+  }, [balance, userId]);
 
   const handleSelectHistoricCombination = (combination: number[]) => {
     if (isDrawing) return;
@@ -371,37 +428,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#070d0e] bg-[radial-gradient(circle_at_center,rgba(5,38,32,0.45)_0%,rgba(8,12,14,1)_75%)] text-white relative flex flex-col items-center justify-start overflow-x-hidden font-sans">
       
-      {/* Decoupled top sports navigation bar inside sportsbook theme (hidden on mobile) */}
-      {!isMobile && (
-        <div className="w-full bg-[#1a1128] border-b border-[#2d2142] py-2 px-4 shadow-[0_4px_12px_rgba(0,0,0,0.5)] z-20">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-none py-1">
-              {NAV_ITEMS.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => {
-                    playClickSound();
-                    setActiveNavItem(item);
-                  }}
-                  className={`text-[11px] font-black tracking-widest cursor-pointer transition-all whitespace-nowrap uppercase ${
-                    activeNavItem === item
-                      ? 'text-[#39ff14] border-b-2 border-[#39ff14]/80 pb-1.5'
-                      : 'text-zinc-400 hover:text-zinc-200 pb-1.5'
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono text-zinc-500">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#39ff14] animate-pulse"></span>
-              <span>SYSTEM ENCRYPTED</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Top 45px Mobile header (visible ONLY on mobile) */}
       {isMobile && (
         <div className="w-full h-[45px] bg-[#11191a] border-b border-[#1e2a2c] flex items-center justify-between px-3 shrink-0 z-30" id="mobile-top-header">
@@ -429,18 +455,16 @@ export default function App() {
 
           {/* Balance pill center-left & ID text */}
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleQuickAddFunds}
-              className="bg-transparent border border-[#39d98a] px-2.5 py-0.5 rounded-full text-left cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-0.5 h-6 hover:bg-[#39d98a]/5"
-              title="Click to double balance (Demo Mode)"
+            <div
+              className="bg-transparent border border-[#39d98a] px-2.5 py-0.5 rounded-full flex items-center justify-center gap-0.5 h-6"
             >
               <span className="text-[#facc15] text-[11px] font-black tracking-wide font-mono leading-none">
                 {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               <span className="text-[8px] text-[#bfccd0] font-bold ml-0.5 leading-none mt-0.5">ETB</span>
-            </button>
+            </div>
 
-            <span className="text-[9px] font-mono text-zinc-500 font-bold">ID: 881426785</span>
+            <span className="text-[9px] font-mono text-zinc-500 font-bold">ID: {shortUserId}</span>
           </div>
 
           {/* Hamburger right */}
@@ -476,28 +500,6 @@ export default function App() {
         </span>
       </div>
 
-      {/* Toast Notifier */}
-      {toastMessage && (
-        <div className="fixed top-14 right-4 z-50 transform transition-all duration-300 max-w-sm w-full font-mono shadow-2xl animate-bounce">
-          <div className={`p-3 rounded-lg border flex items-start gap-2.5 bg-[#1a1f26] border-zinc-800 text-zinc-100`}>
-            {toastMessage.type === 'success' && <Trophy className="w-4 h-4 text-[#39ff14] shrink-0" />}
-            {toastMessage.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />}
-            {toastMessage.type === 'info' && <Info className="w-4 h-4 text-cyan-400 shrink-0" />}
-            
-            <div className="flex-1 text-[11px] font-bold">
-              {toastMessage.text}
-            </div>
-            
-            <button 
-              onClick={() => setToastMessage(null)} 
-              className="text-zinc-500 hover:text-white transition-colors cursor-pointer shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Main Game Frame Container */}
       <div className="w-full sm:w-[94vw] max-w-[1540px] min-h-0 sm:min-h-[760px] mx-auto py-1.5 px-3 sm:px-2 flex flex-col justify-start relative z-20 overflow-x-hidden" id="game-stage">
         
@@ -509,10 +511,10 @@ export default function App() {
             <div className="w-full lg:w-[295px] lg:flex-shrink-0 h-[700px]">
               <LeftPanel 
                 balance={balance} 
-                userId={userId} 
+                userId={shortUserId} 
                 tickets={tickets} 
+                placingTicketIds={placingTicketIds}
                 onClearHistory={handleClearHistory} 
-                onQuickAddFunds={handleQuickAddFunds} 
               />
             </div>
 
@@ -527,11 +529,15 @@ export default function App() {
                 onBetAmountChange={setBetAmount}
                 onPlaceBet={handlePlaceBet}
                 isDrawing={isDrawing}
+                isPlacingBet={isPlacingBet}
+                betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
+                onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}
                 coldNumbersList={coldNumbers.map((cn) => cn.num)}
                 countdown={countdown}
                 drawId={currentDrawId}
+                payTable={payTable}
               />
             </div>
 
@@ -565,11 +571,15 @@ export default function App() {
                 onBetAmountChange={setBetAmount}
                 onPlaceBet={handlePlaceBet}
                 isDrawing={isDrawing}
+                isPlacingBet={isPlacingBet}
+                betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
+                onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}
                 coldNumbersList={coldNumbers.map((cn) => cn.num)}
                 countdown={countdown}
                 drawId={currentDrawId}
+                payTable={payTable}
               />
             </div>
 
@@ -601,10 +611,10 @@ export default function App() {
               {mobileActiveTab === 'GAME' && (
                 <LeftPanel 
                   balance={balance} 
-                  userId={userId} 
+                  userId={shortUserId} 
                   tickets={tickets} 
-                  onClearHistory={handleClearHistory} 
-                  onQuickAddFunds={handleQuickAddFunds}
+                  placingTicketIds={placingTicketIds}
+                  onClearHistory={handleClearHistory}
                   forceTab="GAME"
                   hideHeader
                 />
@@ -612,10 +622,10 @@ export default function App() {
               {mobileActiveTab === 'HISTORY' && (
                 <LeftPanel 
                   balance={balance} 
-                  userId={userId} 
+                  userId={shortUserId} 
                   tickets={tickets} 
-                  onClearHistory={handleClearHistory} 
-                  onQuickAddFunds={handleQuickAddFunds}
+                  placingTicketIds={placingTicketIds}
+                  onClearHistory={handleClearHistory}
                   forceTab="HISTORY"
                   hideHeader
                 />
@@ -666,18 +676,6 @@ export default function App() {
 
           </div>
         )}
-
-        {/* Minimal compact footer info */}
-        <footer className="mt-4 pt-2 border-t border-[#1c2229] flex flex-col sm:flex-row items-center justify-between text-[9px] text-zinc-650 font-mono gap-1.5 uppercase tracking-wider font-bold">
-          <span>FAST KENO ARENA • SPORTSBOOK CLIENT</span>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-[#39ff14]"></span>
-              SYSTEM STATUS: ACTIVE
-            </span>
-            <span>VOUCHER SECURE: OK</span>
-          </div>
-        </footer>
 
       </div>
     </div>

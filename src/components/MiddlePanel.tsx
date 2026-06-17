@@ -1,6 +1,7 @@
 import React from 'react';
 import { Menu } from 'lucide-react';
-import { playClickSound } from '../audio';
+import { playClickSound, playDrawBallSound } from '../audio';
+import { PayTable } from '../types';
 
 interface MiddlePanelProps {
   selectedNumbers: number[];
@@ -11,69 +12,16 @@ interface MiddlePanelProps {
   onBetAmountChange: (amount: number) => void;
   onPlaceBet: () => void;
   isDrawing: boolean;
+  isPlacingBet?: boolean;
+  betAcceptedFlash?: boolean;
   activeDrawnNumbers: number[];
+  onDrawAnimationComplete?: () => void;
   hotNumbersList: number[];
   coldNumbersList: number[];
   countdown: number;
   drawId: string;
+  payTable: PayTable;
 }
-
-const VISUAL_PAYOUTS: Record<number, { match: number; multiplier: number }[]> = {
-  1: [{ match: 1, multiplier: 3.5 }],
-  2: [
-    { match: 1, multiplier: 1 },
-    { match: 2, multiplier: 12 }
-  ],
-  3: [
-    { match: 2, multiplier: 2.5 },
-    { match: 3, multiplier: 45 }
-  ],
-  4: [
-    { match: 2, multiplier: 1 },
-    { match: 3, multiplier: 5 },
-    { match: 4, multiplier: 150 }
-  ],
-  5: [
-    { match: 2, multiplier: 1 },
-    { match: 3, multiplier: 3 },
-    { match: 4, multiplier: 30 },
-    { match: 5, multiplier: 150 }
-  ],
-  6: [
-    { match: 3, multiplier: 1 },
-    { match: 4, multiplier: 6 },
-    { match: 5, multiplier: 25 },
-    { match: 6, multiplier: 1500 }
-  ],
-  7: [
-    { match: 4, multiplier: 4 },
-    { match: 5, multiplier: 15 },
-    { match: 6, multiplier: 150 },
-    { match: 7, multiplier: 5000 }
-  ],
-  8: [
-    { match: 4, multiplier: 2 },
-    { match: 5, multiplier: 10 },
-    { match: 6, multiplier: 50 },
-    { match: 7, multiplier: 1000 },
-    { match: 8, multiplier: 15000 }
-  ],
-  9: [
-    { match: 5, multiplier: 5 },
-    { match: 6, multiplier: 25 },
-    { match: 7, multiplier: 200 },
-    { match: 8, multiplier: 4000 },
-    { match: 9, multiplier: 40000 }
-  ],
-  10: [
-    { match: 5, multiplier: 2 },
-    { match: 6, multiplier: 15 },
-    { match: 7, multiplier: 100 },
-    { match: 8, multiplier: 800 },
-    { match: 9, multiplier: 5000 },
-    { match: 10, multiplier: 100000 }
-  ]
-};
 
 export default function MiddlePanel({
   selectedNumbers,
@@ -84,15 +32,25 @@ export default function MiddlePanel({
   onBetAmountChange,
   onPlaceBet,
   isDrawing,
+  isPlacingBet = false,
+  betAcceptedFlash = false,
   activeDrawnNumbers,
+  onDrawAnimationComplete,
   countdown,
+  payTable,
 }: MiddlePanelProps) {
+  const getTiers = React.useCallback((pickCount: number) => {
+    const table = payTable[pickCount] || payTable[5] || {};
+    return Object.entries(table)
+      .map(([match, multiplier]) => ({ match: Number(match), multiplier }))
+      .sort((a, b) => a.match - b.match);
+  }, [payTable]);
 
   // Animation constants
-  const POP_DURATION = 500;
-  const STATIONARY_DURATION = 700;
-  const FLY_DURATION = 850;
-  const NEXT_BALL_DELAY = 1000;
+  const POP_DURATION = 300;
+  const STATIONARY_DURATION = 320;
+  const FLY_DURATION = 480;
+  const NEXT_BALL_DELAY = 320;
 
   // Local state for animation queue
   const [settledBalls, setSettledBalls] = React.useState<number[]>([]);
@@ -130,6 +88,7 @@ export default function MiddlePanel({
     while (incomingQueueRef.current.length > 0) {
       const nextBall = incomingQueueRef.current.shift()!;
       setCurrentBall(nextBall);
+      playDrawBallSound();
 
       // 1. Pop center ball starts (scale 0.2, invisible)
       setAnimationPhase('pop');
@@ -151,6 +110,10 @@ export default function MiddlePanel({
       updateSettledBalls(newSettled);
       setCurrentBall(null);
       setAnimationPhase('idle');
+
+      if (newSettled.length === 20) {
+        onDrawAnimationComplete?.();
+      }
 
       // 5. Pause briefly before drawing the next ball
       await delay(NEXT_BALL_DELAY);
@@ -216,7 +179,7 @@ export default function MiddlePanel({
   };
 
   const isCurrentlyDrawn = (num: number) => {
-    return activeDrawnNumbers.includes(num);
+    return settledBalls.includes(num) || currentBall === num;
   };
 
   // Decorative dots exactly mirroring the screenshot dots
@@ -247,22 +210,17 @@ export default function MiddlePanel({
       {/* Dynamic Embedded Styles for Radar Rotation and Ball Pop */}
       <style>{`
         @keyframes kenoBallPop {
-          0% { transform: translateX(-50%) scale(0.3) rotate(-25deg); opacity: 0; }
+          0% { transform: translateX(-50%) scale(0.3) rotate(-25deg); }
           75% { transform: translateX(-50%) scale(1.12) rotate(5deg); }
-          100% { transform: translateX(-50%) scale(1) rotate(0); opacity: 1; }
+          100% { transform: translateX(-50%) scale(1) rotate(0); }
         }
         @keyframes kenoBallFly {
           0% {
             transform: translate(-50%, 0) scale(1);
-            opacity: 1;
             filter: blur(0px);
-          }
-          90% {
-            opacity: 0.95;
           }
           100% {
             transform: translate(calc(-50% + var(--target-x, 0px)), var(--target-y, 115px)) scale(0.531);
-            opacity: 0;
             filter: blur(0.5px);
           }
         }
@@ -408,13 +366,12 @@ export default function MiddlePanel({
                         : animationPhase === 'fly'
                         ? `translate(calc(-50% + ${targetX}px), ${targetY}px) scale(${scaleRatio}) rotate(15deg)`
                         : 'translateX(-50%) scale(1.0) rotate(0deg)',
-                      opacity: animationPhase === 'pop' ? 0 : 1,
                       transition: animationPhase === 'pop'
                         ? 'none'
                         : animationPhase === 'visible'
-                        ? `transform ${POP_DURATION - 20}ms cubic-bezier(0.175, 0.885, 0.32, 1.25), opacity 200ms ease`
+                        ? `transform ${POP_DURATION - 20}ms cubic-bezier(0.175, 0.885, 0.32, 1.25)`
                         : animationPhase === 'fly'
-                        ? `transform ${FLY_DURATION}ms cubic-bezier(0.25, 1, 0.5, 1), opacity 300ms ease`
+                        ? `transform ${FLY_DURATION}ms cubic-bezier(0.25, 1, 0.5, 1)`
                         : 'none',
                       zIndex: 40
                     }}
@@ -589,7 +546,7 @@ export default function MiddlePanel({
                   <span className="text-white normal-case ml-1">Possible win</span>
                   <span className="text-[#39d98a] font-mono ml-1.5">
                     {(() => {
-                      const tiers = VISUAL_PAYOUTS[selectedNumbers.length] || VISUAL_PAYOUTS[5];
+                      const tiers = getTiers(selectedNumbers.length);
                       const maxMultiplier = tiers[tiers.length - 1]?.multiplier || 150;
                       return Math.round(betAmount * maxMultiplier);
                     })()}
@@ -605,7 +562,7 @@ export default function MiddlePanel({
                   
                   <div className="flex items-center gap-[12px] md:gap-[24px] ml-2 md:ml-4 overflow-x-auto scrollbar-none font-mono font-bold">
                     {(() => {
-                      const tiers = VISUAL_PAYOUTS[selectedNumbers.length] || VISUAL_PAYOUTS[5];
+                      const tiers = getTiers(selectedNumbers.length);
                       return tiers.map((tier, idx) => {
                         const isCurrentMax = idx === tiers.length - 1;
                         return (
@@ -836,21 +793,23 @@ export default function MiddlePanel({
             </div>
 
             {/* Large Wide Dark Green BET Button - Full width row below on mobile */}
-            <button
-              onClick={() => {
-                onPlaceBet();
-              }}
-              disabled={isDrawing || selectedNumbers.length === 0}
-              className={`w-full md:flex-1 h-9 rounded font-extrabold tracking-widest text-[13px] uppercase cursor-pointer transition-all active:scale-[0.98] flex items-center justify-center outline-none ${
-                selectedNumbers.length === 0
+              <button
+                onClick={() => {
+                  onPlaceBet();
+                }}
+                disabled={isDrawing || isPlacingBet || selectedNumbers.length === 0}
+                className={`w-full md:flex-1 h-9 rounded font-extrabold tracking-widest text-[13px] uppercase cursor-pointer transition-all active:scale-[0.98] flex items-center justify-center outline-none ${
+                  selectedNumbers.length === 0
                   ? 'bg-[#1b2528] text-[#4a585c] cursor-not-allowed border border-[#2e3e43]/20'
-                  : isDrawing
+                  : isDrawing || isPlacingBet
                   ? 'bg-[#1a2530] text-cyan-400 border border-cyan-400/40 animate-pulse cursor-wait'
+                  : betAcceptedFlash
+                  ? 'bg-gradient-to-b from-[#23744a] to-[#174d32] text-[#d8ffe8] border border-[#45b977] shadow-md shadow-[#45b977]/15'
                   : 'bg-gradient-to-b from-[#1c7e4f] to-[#0e4b2d] hover:from-[#1e8d58] hover:to-[#105934] text-white border border-[#22975e] shadow-md shadow-brand-neon/5'
-              }`}
-              id="bet-submit-button"
-            >
-              {isDrawing ? 'Drawing' : 'BET'}
+                }`}
+                id="bet-submit-button"
+              >
+              {isDrawing ? 'Drawing' : isPlacingBet ? 'Waiting' : betAcceptedFlash ? 'Bet Accepted' : 'BET'}
             </button>
 
           </div>

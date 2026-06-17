@@ -3,7 +3,7 @@ export interface Ticket {
   selectedNumbers: number[];
   betAmount: number;
   timestamp: string;
-  status: 'Waiting' | 'Won' | 'Missed';
+  status: 'Waiting' | 'Won' | 'Missed' | 'Placing';
   winAmount?: number;
   drawId: string;
   matchedCount?: number;
@@ -29,3 +29,5 @@ export interface HotColdNumber {
   num: number;
   frequency: number;
 }
+
+export type PayTable = Record<number, Record<number, number>>;

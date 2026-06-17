@@ -1,27 +1,21 @@
-import { DrawResult, Ticket, Leader } from './types';
+import { DrawResult, Ticket, Leader, PayTable } from './types';
 
-// Standard payouts list for Keno based on: Selection Count (1 to 10) -> Match Count -> Multiplier
-// To keep it simple and authentic, we define multipliers for 1-10 picks.
-export function getMultiplier(picks: number, matches: number): number {
-  if (picks <= 0 || matches <= 0) return 0;
-  
-  // Real Fast Keno-like payout tables
-  const payouts: { [key: number]: { [key: number]: number } } = {
-    1: { 1: 3.5 },
-    2: { 1: 1, 2: 12 },
-    3: { 2: 2.5, 3: 45 },
-    4: { 2: 1, 3: 5, 4: 150 },
-    5: { 3: 2, 4: 15, 5: 500 },
-    6: { 3: 1, 4: 6, 5: 25, 6: 1500 },
-    7: { 4: 4, 5: 15, 6: 150, 7: 5000 },
-    8: { 4: 2, 5: 10, 6: 50, 7: 1000, 8: 15000 },
-    9: { 5: 5, 6: 25, 7: 200, 8: 4000, 9: 40000 },
-    10: { 0: 1, 5: 2, 6: 15, 7: 100, 8: 800, 9: 5000, 10: 100000 }
-  };
+export const DEFAULT_PAY_TABLE: PayTable = {
+  1: { 1: 3.5 },
+  2: { 1: 1, 2: 10 },
+  3: { 2: 2, 3: 50 },
+  4: { 2: 1.5, 3: 10, 4: 80 },
+  5: { 2: 1, 3: 3, 4: 30, 5: 150 },
+  6: { 3: 2, 4: 15, 5: 60, 6: 500 },
+  7: { 0: 1, 3: 2, 4: 4, 5: 20, 6: 80, 7: 1000 },
+  8: { 0: 1, 4: 5, 5: 15, 6: 50, 7: 200, 8: 2000 },
+  9: { 0: 2, 4: 2, 5: 10, 6: 25, 7: 125, 8: 1000, 9: 5000 },
+  10: { 0: 2, 5: 5, 6: 30, 7: 100, 8: 300, 9: 2000, 10: 10000 },
+};
 
-  const table = payouts[picks];
-  if (!table) return 0;
-  return table[matches] || (picks === 10 && matches === 0 ? 1 : 0);
+export function getMultiplier(payTable: PayTable, picks: number, matches: number): number {
+  if (picks <= 0 || matches < 0) return 0;
+  return payTable[picks]?.[matches] || 0;
 }
 
 // Generate realistic draw results
