@@ -58,7 +58,8 @@ export function mapBackendTicket(ticket: any) {
     status: status === 'won' ? 'Won' : status === 'lost' ? 'Missed' : 'Waiting',
     winAmount: Number(ticket?.payout || 0),
     matchedCount: ticket?.hits ?? undefined,
-    matchedNumbers: [],
+    matchedNumbers: Array.isArray(ticket?.matchedNumbers) ? ticket.matchedNumbers : [],
+    isMine: true,
   };
 }
 

@@ -98,6 +98,44 @@ export default function App() {
   const ballTimerRef = useRef<NodeJS.Timeout | null>(null);
   const settledRoundRef = useRef<any>(null);
 
+  const syncParentWallet = (nextBalance: number) => {
+    if (typeof window === 'undefined' || window.parent === window) return;
+    if (!Number.isFinite(nextBalance)) return;
+    window.parent.postMessage(
+      {
+        type: 'fast-keno-wallet-sync',
+        payload: { userId, balance: nextBalance },
+      },
+      '*'
+    );
+  };
+
+  const mergeTickets = (nextTickets: Ticket[]) => {
+    setTickets((prev) => {
+      const byId = new Map<string, Ticket>();
+      [...prev, ...nextTickets].forEach((ticket) => byId.set(ticket.id, ticket));
+      return Array.from(byId.values()).sort((a, b) => {
+        if (a.status === 'Waiting' && b.status !== 'Waiting') return -1;
+        if (a.status !== 'Waiting' && b.status === 'Waiting') return 1;
+        return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
+      });
+    });
+  };
+
+  const makeOtherPlayerTickets = (drawId: string, count = 5): Ticket[] => (
+    Array.from({ length: count }).map((_, index) => ({
+      id: `other-${drawId}-${index}-${Date.now()}`,
+      userId: `ET***${Math.floor(10 + Math.random() * 89)}`,
+      selectedNumbers: generateRandomCombination(5 + Math.floor(Math.random() * 5), 1, 80),
+      betAmount: [20, 50, 100, 200][Math.floor(Math.random() * 4)],
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      status: 'Waiting',
+      winAmount: 0,
+      drawId,
+      isMine: false,
+    }))
+  );
+
   // Bulletproof cleanup of active timers on unmount
   useEffect(() => {
     return () => {
@@ -131,8 +169,12 @@ export default function App() {
         const payload = data.payload;
         if (payload.balance !== null && payload.balance !== undefined) {
           setBalance(payload.balance);
+          syncParentWallet(Number(payload.balance));
         }
-        setTickets(payload.tickets.length ? payload.tickets : INITIAL_TICKETS);
+        setTickets([
+          ...(payload.tickets || []),
+          ...makeOtherPlayerTickets(String(payload.round.drawId), 4),
+        ]);
         setDrawResults(payload.draws.length ? payload.draws.map((draw: any) => ({
           drawId: draw.drawId,
           time: draw.time,
@@ -237,8 +279,23 @@ export default function App() {
       const nextBalance = Number(serviceResult.balance);
       if (Number.isFinite(nextBalance)) {
         setBalance(nextBalance);
+        syncParentWallet(nextBalance);
       }
-      setTickets(serviceResult.tickets);
+      mergeTickets(serviceResult.tickets);
+      setTickets((prevTickets) => prevTickets.map((t) => {
+        if (t.isMine !== false || t.status !== 'Waiting' || t.drawId !== currentDrawId) return t;
+        const matchedNumbers = t.selectedNumbers.filter((n) => combination.includes(n));
+        const matchedCount = matchedNumbers.length;
+        const multiplier = getMultiplier(payTable, t.selectedNumbers.length, matchedCount);
+        const winAmount = Math.round(t.betAmount * multiplier);
+        return {
+          ...t,
+          status: winAmount > 0 ? 'Won' : 'Missed',
+          winAmount,
+          matchedCount,
+          matchedNumbers,
+        };
+      }));
       setDrawResults(serviceResult.draws.map((draw: any) => ({
         drawId: draw.drawId,
         time: draw.time,
@@ -286,7 +343,6 @@ export default function App() {
 
     updateStatistics(combination);
     simulateLeaderboardActivity(combination);
-    setSelectedNumbers([]);
     setActiveDrawnNumbers([]);
 
     const nextRoundParams = new URLSearchParams({ userId });
@@ -303,6 +359,9 @@ export default function App() {
         if (!data?.ok) return;
         setCurrentDrawId(data.payload.round.drawId);
         setCountdown(Math.max(1, Math.min(DRAW_SECONDS, Number(data.payload.round.secondsRemaining || DRAW_SECONDS))));
+        if (Array.isArray(data.payload.tickets)) {
+          mergeTickets(data.payload.tickets);
+        }
       })
       .catch(() => {
         setCurrentDrawId(String(Number(currentDrawId) + 1));
@@ -425,8 +484,12 @@ export default function App() {
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.message || 'Bet failed');
 
-      setBalance(data.payload.balance);
-      setTickets(data.payload.tickets);
+      const nextBalance = Number(data.payload.balance);
+      if (Number.isFinite(nextBalance)) {
+        setBalance(nextBalance);
+        syncParentWallet(nextBalance);
+      }
+      mergeTickets([...(data.payload.tickets || []), ...makeOtherPlayerTickets(String(data.payload.round.drawId))]);
       setCurrentDrawId(data.payload.round.drawId);
       setSelectedNumbers([]);
       setBetAcceptedFlash(true);

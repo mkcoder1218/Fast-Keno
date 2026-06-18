@@ -190,12 +190,12 @@ export default function LeftPanel({
       <div className="flex-1 overflow-y-auto space-y-1 pr-1.5 visible-thin-scrollbar-left" id="tickets-list">
         {activeTab === 'GAME' ? (
           (activeSubTab === 'All' ? activePlacedTickets : activePlacedTickets).map((ticket, idx) => {
-            const displayMask = `USER***${ticket.id.slice(-3)}`;
+            const displayMask = ticket.isMine === false ? String(ticket.userId || `USER***${ticket.id.slice(-3)}`) : `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
             const greenNums = nums.filter((num) => activeDrawnNumberSet.has(num));
             const betText = `Bet ${ticket.betAmount}`;
             const isPlacing = placingTicketIds.includes(ticket.id);
-            const myTicketLabel = `${Math.max(1, activePlacedTickets.length - idx)} My Ticket`;
+            const myTicketLabel = ticket.isMine === false ? displayMask : `${Math.max(1, activePlacedTickets.length - idx)} My Ticket`;
 
             return (
               <div
@@ -214,7 +214,7 @@ export default function LeftPanel({
                 )}
                 {/* Compact Row 1: Username mask */}
                 <div className={`text-[10px] font-extrabold tracking-wide font-mono mb-1 ${isPlacing ? 'text-[#7ff0a6]' : 'text-[#39d98a]'}`}>
-                  {isPlacing ? myTicketLabel : displayMask}
+                  {ticket.isMine === false || isPlacing ? myTicketLabel : displayMask}
                 </div>
 
                 {/* Compact Row 2: Selected numbers in small cubes (22px x 20px) */}
@@ -262,12 +262,12 @@ export default function LeftPanel({
           })
         ) : (
           (activeSubTab === 'All' ? pastPlacedTickets : pastPlacedTickets).map((ticket, idx) => {
-            const displayMask = `USER***${ticket.id.slice(-3)}`;
+            const displayMask = ticket.isMine === false ? String(ticket.userId || `USER***${ticket.id.slice(-3)}`) : `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
             const isWon = ticket.status === 'Won';
             const payoutText = ((ticket as any).winAmount || 0).toLocaleString('en-US');
             const wonIndex = isWon ? wonTickets.findIndex((t) => t.id === ticket.id) : -1;
-            const wonTicketLabel = wonIndex >= 0 ? `${Math.max(1, wonTickets.length - wonIndex)} My Ticket` : displayMask;
+            const wonTicketLabel = ticket.isMine === false ? displayMask : wonIndex >= 0 ? `${Math.max(1, wonTickets.length - wonIndex)} My Ticket` : displayMask;
             const matchedNumberSet = new Set(ticket.matchedNumbers || []);
 
             return (

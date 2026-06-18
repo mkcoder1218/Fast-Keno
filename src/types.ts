@@ -1,5 +1,6 @@
 export interface Ticket {
   id: string;
+  userId?: string;
   selectedNumbers: number[];
   betAmount: number;
   timestamp: string;
@@ -8,6 +9,7 @@ export interface Ticket {
   drawId: string;
   matchedCount?: number;
   matchedNumbers?: number[];
+  isMine?: boolean;
 }
 
 export interface DrawResult {
