@@ -15,6 +15,7 @@ interface MiddlePanelProps {
   isPlacingBet?: boolean;
   betAcceptedFlash?: boolean;
   activeDrawnNumbers: number[];
+  highlightNumbers?: number[];
   onDrawAnimationComplete?: () => void;
   hotNumbersList: number[];
   coldNumbersList: number[];
@@ -35,6 +36,7 @@ export default function MiddlePanel({
   isPlacingBet = false,
   betAcceptedFlash = false,
   activeDrawnNumbers,
+  highlightNumbers = selectedNumbers,
   onDrawAnimationComplete,
   countdown,
   payTable,
@@ -51,6 +53,7 @@ export default function MiddlePanel({
       .map(([match, multiplier]) => ({ match: Number(match), multiplier }))
       .sort((a, b) => a.match - b.match);
   }, [payTable]);
+  const highlightNumberSet = React.useMemo(() => new Set(highlightNumbers), [highlightNumbers]);
 
   // Animation constants
   const POP_DURATION = 300;
@@ -404,7 +407,7 @@ export default function MiddlePanel({
                   >
                     {/* 3D Glossy background gradient inside */}
                     <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
-                      selectedNumbers.includes(currentBall) ? 'keno-ball-green-glossy-lg' : 'keno-ball-blue-glossy-lg'
+                      highlightNumberSet.has(currentBall) ? 'keno-ball-green-glossy-lg' : 'keno-ball-blue-glossy-lg'
                     }`} />
                     <span className="relative z-10 leading-none">{currentBall}</span>
                   </div>
@@ -424,7 +427,7 @@ export default function MiddlePanel({
                 {Array.from({ length: 10 }).map((_, idx) => {
                   const ballVal = topRow[idx] !== undefined ? topRow[idx] : null;
                   const hasBall = ballVal !== null;
-                  const isMatch = ballVal !== null && selectedNumbers.includes(ballVal);
+                  const isMatch = ballVal !== null && highlightNumberSet.has(ballVal);
 
                   if (!hasBall) return null;
 
@@ -468,7 +471,7 @@ export default function MiddlePanel({
                 {Array.from({ length: 10 }).map((_, idx) => {
                   const ballVal = bottomRow[idx] !== undefined ? bottomRow[idx] : null;
                   const hasBall = ballVal !== null;
-                  const isMatch = ballVal !== null && selectedNumbers.includes(ballVal);
+                  const isMatch = ballVal !== null && highlightNumberSet.has(ballVal);
 
                   if (!hasBall) return null;
 

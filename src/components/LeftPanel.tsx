@@ -7,6 +7,7 @@ interface LeftPanelProps {
   userId: string;
   tickets: Ticket[];
   placingTicketIds?: string[];
+  activeDrawnNumbers?: number[];
   onClearHistory: () => void;
   forceTab?: 'GAME' | 'HISTORY';
   hideHeader?: boolean;
@@ -27,6 +28,7 @@ export default function LeftPanel({
   userId,
   tickets,
   placingTicketIds = [],
+  activeDrawnNumbers = [],
   onClearHistory,
   forceTab,
   hideHeader,
@@ -45,6 +47,7 @@ export default function LeftPanel({
   const activePlacedTickets = tickets.filter(t => t.status === 'Waiting');
   const pastPlacedTickets = tickets.filter(t => t.status !== 'Waiting');
   const wonTickets = pastPlacedTickets.filter((t) => t.status === 'Won');
+  const activeDrawnNumberSet = new Set(activeDrawnNumbers);
 
   return (
     <div className="flex flex-col h-full bg-[#11191a] border border-[#1e2a2c] p-2 text-zinc-100 uppercase select-none rounded-md" id="left-panel">
@@ -187,7 +190,7 @@ export default function LeftPanel({
           (activeSubTab === 'All' ? activePlacedTickets : activePlacedTickets).map((ticket, idx) => {
             const displayMask = `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
-            const greenNums: number[] = [];
+            const greenNums = nums.filter((num) => activeDrawnNumberSet.has(num));
             const betText = `Bet ${ticket.betAmount}`;
             const isPlacing = placingTicketIds.includes(ticket.id);
             const myTicketLabel = `${Math.max(1, activePlacedTickets.length - idx)} My Ticket`;
@@ -263,6 +266,7 @@ export default function LeftPanel({
             const payoutText = ((ticket as any).winAmount || 0).toLocaleString('en-US');
             const wonIndex = isWon ? wonTickets.findIndex((t) => t.id === ticket.id) : -1;
             const wonTicketLabel = wonIndex >= 0 ? `${Math.max(1, wonTickets.length - wonIndex)} My Ticket` : displayMask;
+            const matchedNumberSet = new Set(ticket.matchedNumbers || []);
 
             return (
               <div
@@ -275,14 +279,17 @@ export default function LeftPanel({
                 </div>
 
                 <div className="flex flex-wrap gap-[3px] mb-1.5">
-                  {nums.map((num) => (
+                  {nums.map((num) => {
+                    const isMatched = matchedNumberSet.has(num);
+                    return (
                     <div
                       key={num}
-                      className={`w-[21px] h-[19px] rounded-[1.5px] flex items-center justify-center text-[10px] font-mono font-bold shrink-0 ${isWon ? 'bg-[#3c6f4c] text-[#f2fff8]' : 'bg-[#34454b] text-[#bfccd0]'}`}
+                      className={`w-[21px] h-[19px] rounded-[1.5px] flex items-center justify-center text-[10px] font-mono font-bold shrink-0 ${isMatched ? 'bg-[#39d98a] text-black' : isWon ? 'bg-[#3c6f4c] text-[#f2fff8]' : 'bg-[#34454b] text-[#bfccd0]'}`}
                     >
                       {num}
                     </div>
-                  ))}
+                    );
+                  })}
                   {Array.from({ length: Math.max(0, 10 - nums.length) }).map((_, i) => (
                     <div
                       key={i}

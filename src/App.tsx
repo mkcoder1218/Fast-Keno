@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import LeftPanel from './components/LeftPanel';
 import MiddlePanel from './components/MiddlePanel';
 import RightPanel from './components/RightPanel';
@@ -82,6 +82,15 @@ export default function App() {
   const [isPlacingBet, setIsPlacingBet] = useState<boolean>(false);
   const [activeDrawnNumbers, setActiveDrawnNumbers] = useState<number[]>([]);
   const [currentDrawId, setCurrentDrawId] = useState<string>('8024922');
+  const activeTicketHighlightNumbers = useMemo(
+    () => Array.from(new Set([
+      ...selectedNumbers,
+      ...tickets
+        .filter((ticket) => ticket.status === 'Waiting')
+        .flatMap((ticket) => ticket.selectedNumbers),
+    ])),
+    [selectedNumbers, tickets]
+  );
 
   // Timer Ref to manage draw interval
   const ballTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -550,6 +559,7 @@ export default function App() {
                 userId={shortUserId} 
                 tickets={tickets} 
                 placingTicketIds={placingTicketIds}
+                activeDrawnNumbers={activeDrawnNumbers}
                 onClearHistory={handleClearHistory} 
               />
             </div>
@@ -568,6 +578,7 @@ export default function App() {
                 isPlacingBet={isPlacingBet}
                 betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
+                highlightNumbers={activeTicketHighlightNumbers}
                 onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}
                 coldNumbersList={coldNumbers.map((cn) => cn.num)}
@@ -610,6 +621,7 @@ export default function App() {
                 isPlacingBet={isPlacingBet}
                 betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
+                highlightNumbers={activeTicketHighlightNumbers}
                 onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}
                 coldNumbersList={coldNumbers.map((cn) => cn.num)}
@@ -650,6 +662,7 @@ export default function App() {
                   userId={shortUserId} 
                   tickets={tickets} 
                   placingTicketIds={placingTicketIds}
+                  activeDrawnNumbers={activeDrawnNumbers}
                   onClearHistory={handleClearHistory}
                   forceTab="GAME"
                   hideHeader
@@ -661,6 +674,7 @@ export default function App() {
                   userId={shortUserId} 
                   tickets={tickets} 
                   placingTicketIds={placingTicketIds}
+                  activeDrawnNumbers={activeDrawnNumbers}
                   onClearHistory={handleClearHistory}
                   forceTab="HISTORY"
                   hideHeader
