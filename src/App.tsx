@@ -92,6 +92,7 @@ export default function App() {
     ])),
     [selectedNumbers, tickets]
   );
+  const ticketDrawHighlights = isDrawing ? activeDrawnNumbers : [];
 
   // Timer Ref to manage draw interval
   const ballTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -286,6 +287,7 @@ export default function App() {
     updateStatistics(combination);
     simulateLeaderboardActivity(combination);
     setSelectedNumbers([]);
+    setActiveDrawnNumbers([]);
 
     const nextRoundParams = new URLSearchParams({ userId });
     if (launchAuthToken) {
@@ -560,7 +562,7 @@ export default function App() {
                 userId={shortUserId} 
                 tickets={tickets} 
                 placingTicketIds={placingTicketIds}
-                activeDrawnNumbers={activeDrawnNumbers}
+                activeDrawnNumbers={ticketDrawHighlights}
                 hideWalletHeader={isEmbeddedInKing5}
                 onClearHistory={handleClearHistory} 
               />
@@ -664,7 +666,7 @@ export default function App() {
                   userId={shortUserId} 
                   tickets={tickets} 
                   placingTicketIds={placingTicketIds}
-                  activeDrawnNumbers={activeDrawnNumbers}
+                  activeDrawnNumbers={ticketDrawHighlights}
                   onClearHistory={handleClearHistory}
                   forceTab="GAME"
                   hideHeader
@@ -676,7 +678,7 @@ export default function App() {
                   userId={shortUserId} 
                   tickets={tickets} 
                   placingTicketIds={placingTicketIds}
-                  activeDrawnNumbers={activeDrawnNumbers}
+                  activeDrawnNumbers={ticketDrawHighlights}
                   onClearHistory={handleClearHistory}
                   forceTab="HISTORY"
                   hideHeader
