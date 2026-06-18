@@ -11,6 +11,7 @@ interface LeftPanelProps {
   onClearHistory: () => void;
   forceTab?: 'GAME' | 'HISTORY';
   hideHeader?: boolean;
+  hideWalletHeader?: boolean;
 }
 
 type TabType = 'GAME' | 'HISTORY';
@@ -32,6 +33,7 @@ export default function LeftPanel({
   onClearHistory,
   forceTab,
   hideHeader,
+  hideWalletHeader,
 }: LeftPanelProps) {
   const [localActiveTab, setLocalActiveTab] = useState<TabType>('GAME');
   const activeTab = forceTab || localActiveTab;
@@ -78,7 +80,7 @@ export default function LeftPanel({
       `}</style>
 
       {/* Top Wallet & User ID row precisely as screenshot - 40px high */}
-      {!hideHeader && (
+      {!hideHeader && !hideWalletHeader && (
         <>
           <div className="flex items-center justify-between h-9 mb-1.5 px-0.5">
             {/* Balance Yellow Capsule Pill */}

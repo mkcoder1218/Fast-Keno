@@ -38,6 +38,7 @@ export default function App() {
   const launchBalance = Number(launchParams?.get('balance') || 90.37);
   const launchAuthToken = launchParams?.get('authToken') || '';
   const launchBackendApiBase = launchParams?.get('backendApiBase') || '';
+  const isEmbeddedInKing5 = launchParams?.get('embedded') === 'king5';
   const shortUserId = launchUserId.length > 8 ? launchUserId.slice(-8) : launchUserId;
 
   // Gameplay States
@@ -473,8 +474,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#070d0e] bg-[radial-gradient(circle_at_center,rgba(5,38,32,0.45)_0%,rgba(8,12,14,1)_75%)] text-white relative flex flex-col items-center justify-start overflow-x-hidden font-sans">
       
-      {/* Top 45px Mobile header (visible ONLY on mobile) */}
-      {isMobile && (
+      {/* Top 45px Mobile header (hidden when King5 provides the wallet/header) */}
+      {isMobile && !isEmbeddedInKing5 && (
         <div className="w-full h-[45px] bg-[#11191a] border-b border-[#1e2a2c] flex items-center justify-between gap-2 px-3 shrink-0 z-30" id="mobile-top-header">
           {/* FASTKENO logo left */}
           <div className="flex min-w-0 items-center">
@@ -560,6 +561,7 @@ export default function App() {
                 tickets={tickets} 
                 placingTicketIds={placingTicketIds}
                 activeDrawnNumbers={activeDrawnNumbers}
+                hideWalletHeader={isEmbeddedInKing5}
                 onClearHistory={handleClearHistory} 
               />
             </div>
