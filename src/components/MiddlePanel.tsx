@@ -506,7 +506,7 @@ export default function MiddlePanel({
         /* ==================== NORMAL BETTING MODE PANEL ==================== */
         <>
           {/* Top Header Row carrying Logo, Timer and Burger Menu */}
-          <div className="relative w-full h-[30px] md:h-[61px] shrink-0" id="middle-logo-header">
+          <div className="relative w-full h-[26px] md:h-[61px] shrink-0" id="middle-logo-header">
             {/* FAST KENO brand name (hidden on mobile, handled by main header) */}
             <h1 
               className="absolute left-1/2 hidden -select-none items-center justify-center text-center font-black leading-none md:flex"
@@ -561,7 +561,7 @@ export default function MiddlePanel({
           </div>
 
           {/* Header instructions / Live drawn balls container - height around 125px on mobile, 132px on desktop */}
-          <div className="bg-[#263335] rounded-[5px] h-[124px] md:h-[132px] relative overflow-hidden flex flex-col justify-center px-3 mt-0.5 md:mt-1.5" id="middle-header">
+          <div className="bg-[#263335] rounded-[5px] h-[104px] md:h-[132px] relative overflow-hidden flex flex-col justify-center px-3 mt-0.5 md:mt-1.5" id="middle-header">
             {selectedNumbers.length > 0 ? (
               /* Ticket Preview / Possible Win Panel */
               <div className="w-full h-full flex flex-col justify-between pr-[32px] pt-[12px] pb-[12px] relative z-10" id="selected-ticket-preview">
@@ -713,7 +713,7 @@ export default function MiddlePanel({
                 {/* Instructions */}
                 <div 
                   className="absolute text-left font-sans flex flex-col justify-start leading-tight z-10"
-                  style={{ left: typeof window !== 'undefined' && window.innerWidth < 768 ? '60px' : '116px', top: '48px' }}
+                  style={{ left: typeof window !== 'undefined' && window.innerWidth < 768 ? '60px' : '116px', top: typeof window !== 'undefined' && window.innerWidth < 768 ? '38px' : '48px' }}
                 >
                   <h2 className="text-[18px] md:text-[22px] font-bold tracking-tight text-white normal-case leading-none">Choose 10 numbers</h2>
                   <p className="text-[14px] md:text-[16px] font-medium text-[#39d98a] tracking-normal mt-1 leading-none normal-case">From 1 to 80</p>
@@ -746,7 +746,7 @@ export default function MiddlePanel({
                   key={num}
                   onClick={() => onToggleNumber(num)}
                   disabled={isDrawing}
-                  className={`h-[clamp(38px,9vw,44px)] md:h-[55px] flex flex-col items-center justify-center relative overflow-hidden select-none outline-none rounded-[2px] transition-all ${
+                  className={`h-[clamp(34px,8.4vw,42px)] md:h-[55px] flex flex-col items-center justify-center relative overflow-hidden select-none outline-none rounded-[2px] transition-all ${
                     isDrawing ? 'cursor-not-allowed' : 'cursor-pointer'
                   } ${
                     isDrawn && isSelected
