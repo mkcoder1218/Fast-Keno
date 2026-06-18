@@ -50,6 +50,7 @@ export default function LeftPanel({
   const pastPlacedTickets = tickets.filter(t => t.status !== 'Waiting');
   const wonTickets = pastPlacedTickets.filter((t) => t.status === 'Won');
   const activeDrawnNumberSet = new Set(activeDrawnNumbers);
+  const showPlayerHitHighlights = activeSubTab !== 'All';
 
   return (
     <div className="flex flex-col h-full bg-[#11191a] border border-[#1e2a2c] p-2 text-zinc-100 uppercase select-none rounded-md" id="left-panel">
@@ -192,7 +193,7 @@ export default function LeftPanel({
           (activeSubTab === 'All' ? activePlacedTickets : activePlacedTickets).map((ticket, idx) => {
             const displayMask = `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
-            const greenNums = nums.filter((num) => activeDrawnNumberSet.has(num));
+            const greenNums = showPlayerHitHighlights ? nums.filter((num) => activeDrawnNumberSet.has(num)) : [];
             const betText = `Bet ${ticket.betAmount}`;
             const isPlacing = placingTicketIds.includes(ticket.id);
             const myTicketLabel = `${Math.max(1, activePlacedTickets.length - idx)} My Ticket`;
@@ -282,7 +283,7 @@ export default function LeftPanel({
 
                 <div className="flex flex-wrap gap-[3px] mb-1.5">
                   {nums.map((num) => {
-                    const isMatched = matchedNumberSet.has(num);
+                    const isMatched = showPlayerHitHighlights && matchedNumberSet.has(num);
                     return (
                     <div
                       key={num}
