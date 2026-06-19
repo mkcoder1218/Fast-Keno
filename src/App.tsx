@@ -228,10 +228,14 @@ export default function App() {
     let fullCombination = generateRandomCombination(20, 1, 80);
     settledRoundRef.current = null;
 
+    const settleController = new AbortController();
+    const settleTimeout = window.setTimeout(() => settleController.abort(), 1500);
+
     try {
       const res = await fetch('/api/fast-keno/settle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: settleController.signal,
         body: JSON.stringify({
           userId,
           drawId: currentDrawId,
@@ -247,7 +251,15 @@ export default function App() {
         fullCombination = data.payload.draw.combination;
       }
     } catch (error) {
-      triggerToast(error instanceof Error ? error.message : 'Draw failed on local service.', 'error');
+      settledRoundRef.current = null;
+      triggerToast(
+        error instanceof Error && error.name !== 'AbortError'
+          ? error.message
+          : 'Draw service is slow, using local draw.',
+        'error'
+      );
+    } finally {
+      window.clearTimeout(settleTimeout);
     }
     setActiveDrawnNumbers(fullCombination.slice(0, DRAW_COUNT));
   };
