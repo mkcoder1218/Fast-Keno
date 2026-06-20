@@ -201,6 +201,8 @@ export default function LeftPanel({
               : nums.filter((num) => activeDrawnNumberSet.has(num));
             const betText = `Bet ${ticket.betAmount}`;
             const isPlacing = placingTicketIds.includes(ticket.id);
+            const isOwnWaitingTicket = ticket.isMine !== false && ticket.status === 'Waiting';
+            const isGreenTicket = isPlacing || isOwnWaitingTicket;
             const myTicketLabel = ticket.isMine === false ? displayMask : `${Math.max(1, myActiveTickets.length - idx)} My Ticket`;
             const ticketOwnerLabel = ticket.isMine === false || activeSubTab === 'All'
               ? displayMask
@@ -210,7 +212,7 @@ export default function LeftPanel({
               <div
                 key={ticket.id + '-' + idx}
                 className={`p-1.5 rounded-[4px] border transition-all text-xs relative overflow-hidden ${
-                  isPlacing
+                  isGreenTicket
                     ? 'bg-[#245135] border-[#3f8b5f] shadow-[0_0_0_1px_rgba(104,219,146,0.18)]'
                     : 'bg-[#1f2b2e] border-[#2b3a3d]/20'
                 }`}
@@ -222,7 +224,7 @@ export default function LeftPanel({
                   </>
                 )}
                 {/* Compact Row 1: Username mask */}
-                <div className={`text-[10px] font-extrabold tracking-wide font-mono mb-1 ${isPlacing ? 'text-[#7ff0a6]' : 'text-[#39d98a]'}`}>
+                <div className={`text-[10px] font-extrabold tracking-wide font-mono mb-1 ${isGreenTicket ? 'text-[#7ff0a6]' : 'text-[#39d98a]'}`}>
                   {isPlacing ? myTicketLabel : ticketOwnerLabel}
                 </div>
 
@@ -236,7 +238,7 @@ export default function LeftPanel({
                         className={`w-[21px] h-[19px] rounded-[1.5px] flex items-center justify-center text-[10px] font-mono font-bold shrink-0 ${
                           isGreen
                             ? 'bg-[#39d98a] text-black'
-                            : isPlacing
+                            : isGreenTicket
                             ? 'bg-[#3c6f4c] text-[#f2fff8]'
                             : 'bg-[#34454b] text-[#bfccd0]'
                         }`}
@@ -250,18 +252,18 @@ export default function LeftPanel({
                   {Array.from({ length: Math.max(0, 10 - nums.length) }).map((_, i) => (
                     <div
                       key={i}
-                      className={`w-[21px] h-[19px] rounded-[1.5px] shrink-0 ${isPlacing ? 'bg-[#2b5b3d]' : 'bg-[#182325]'}`}
+                      className={`w-[21px] h-[19px] rounded-[1.5px] shrink-0 ${isGreenTicket ? 'bg-[#2b5b3d]' : 'bg-[#182325]'}`}
                     ></div>
                   ))}
                 </div>
 
                 {/* Compact Row 3: Horizontal segmented bar */}
                 <div className="grid grid-cols-2 gap-[1.5px] text-[11px] font-mono font-bold">
-                  <div className={`${isPlacing ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-white flex items-center justify-start rounded-l-[2.5px]`}>
+                  <div className={`${isGreenTicket ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-white flex items-center justify-start rounded-l-[2.5px]`}>
                     {betText}
                   </div>
-                  <div className={`${isPlacing ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-right flex items-center justify-end rounded-r-[2.5px]`}>
-                    <span className={`font-extrabold uppercase text-[10px] ${isPlacing ? 'text-[#7ff0a6] animate-pulse' : 'text-[#facc15]'}`}>
+                  <div className={`${isGreenTicket ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-right flex items-center justify-end rounded-r-[2.5px]`}>
+                    <span className={`font-extrabold uppercase text-[10px] ${isGreenTicket ? 'text-[#7ff0a6] animate-pulse' : 'text-[#facc15]'}`}>
                       Waiting
                     </span>
                   </div>

@@ -162,6 +162,10 @@ export default function App() {
       return Array.from(byId.values()).sort((a, b) => {
         if (a.status === 'Waiting' && b.status !== 'Waiting') return -1;
         if (a.status !== 'Waiting' && b.status === 'Waiting') return 1;
+        if (a.status === 'Waiting' && b.status === 'Waiting') {
+          if (a.isMine !== false && b.isMine === false) return -1;
+          if (a.isMine === false && b.isMine !== false) return 1;
+        }
         return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
       });
     });
