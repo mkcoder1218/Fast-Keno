@@ -149,6 +149,28 @@ export default function App() {
       setServerTimeOffsetMs(nextOffset);
     }
   };
+
+  const syncRoundPhase = (round: any) => {
+    if (!round) return;
+    const nextDrawId = String(round.drawId || round.roundNumber || round.id || '');
+    if (!nextDrawId) return;
+
+    const nextRoundClosesAtMs = getRoundCloseMs(round, nextDrawId);
+    setCurrentDrawId(nextDrawId);
+    setRoundClosesAtMs(nextRoundClosesAtMs);
+    setCountdown(getSecondsUntil(nextRoundClosesAtMs));
+
+    const secondsRemaining = Number(round.secondsRemaining);
+    const previousDrawId = String(Number(nextDrawId) - 1);
+    if (
+      Number.isFinite(secondsRemaining) &&
+      secondsRemaining > POP_SECONDS &&
+      previousDrawId !== drawingDrawIdRef.current
+    ) {
+      const elapsedPopMs = (WAIT_SECONDS - Math.min(secondsRemaining, WAIT_SECONDS)) * 1000;
+      triggerLiveDrawing(previousDrawId, elapsedPopMs);
+    }
+  };
   
   // Selection States
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
@@ -186,6 +208,7 @@ export default function App() {
   const [isPlacingBet, setIsPlacingBet] = useState<boolean>(false);
   const [activeDrawnNumbers, setActiveDrawnNumbers] = useState<number[]>([]);
   const [visibleDrawnNumbers, setVisibleDrawnNumbers] = useState<number[]>([]);
+  const [initialSettledNumbers, setInitialSettledNumbers] = useState<number[]>([]);
   const [currentDrawId, setCurrentDrawId] = useState<string>(initialDrawId);
   const [drawingDrawId, setDrawingDrawId] = useState<string | null>(null);
   const activeTicketHighlightNumbers = useMemo(
@@ -357,10 +380,7 @@ export default function App() {
         if (payload.payTable) {
           setPayTable(payload.payTable);
         }
-        setCurrentDrawId(payload.round.drawId);
-        const nextRoundClosesAtMs = getRoundCloseMs(payload.round, payload.round.drawId);
-        setRoundClosesAtMs(nextRoundClosesAtMs);
-        setCountdown(getSecondsUntil(nextRoundClosesAtMs));
+        syncRoundPhase(payload.round);
       })
       .catch(() => {
         triggerToast('Local Fast Keno service is not reachable yet.', 'error');
@@ -444,11 +464,7 @@ export default function App() {
 
           const round = payload.round || payload.currentRound;
           if (round?.drawId || round?.roundNumber || round?.id) {
-            const nextDrawId = String(round.drawId || round.roundNumber || round.id);
-            setCurrentDrawId(nextDrawId);
-            const nextRoundClosesAtMs = getRoundCloseMs(round, nextDrawId);
-            setRoundClosesAtMs(nextRoundClosesAtMs);
-            setCountdown(getSecondsUntil(nextRoundClosesAtMs));
+            syncRoundPhase(round);
           }
           if (round?.secondsRemaining !== undefined) {
             const fallbackCloseMs = getServerNowMs() + Math.min(
@@ -516,16 +532,18 @@ export default function App() {
   }, [isDrawing, currentDrawId, roundClosesAtMs, serverTimeOffsetMs]);
 
   // Performs 20 numbers drawing sequentially
-  const triggerLiveDrawing = async (drawIdToPlay = currentDrawIdRef.current) => {
+  const triggerLiveDrawing = async (drawIdToPlay = currentDrawIdRef.current, elapsedPopMs = 0) => {
     // If a drawing loop is already active, do NOT start another!
     if (ballTimerRef.current) {
       return;
     }
     const roundDrawId = String(drawIdToPlay || currentDrawIdRef.current);
+    drawingDrawIdRef.current = roundDrawId;
     setIsDrawing(true);
     setDrawingDrawId(roundDrawId);
     setActiveDrawnNumbers([]);
     setVisibleDrawnNumbers([]);
+    setInitialSettledNumbers([]);
     
     let fullCombination = launchAuthToken
       ? []
@@ -572,6 +590,7 @@ export default function App() {
 
     if (fullCombination.length === 0) {
       triggerToast(`Waiting for real result for Draw #${roundDrawId}.`, 'info');
+      drawingDrawIdRef.current = null;
       setDrawingDrawId(null);
       setIsDrawing(false);
       window.setTimeout(() => {
@@ -582,6 +601,11 @@ export default function App() {
       return;
     }
 
+    const perBallMs = (POP_SECONDS * 1000) / DRAW_COUNT;
+    const settledCount = Math.max(0, Math.min(DRAW_COUNT - 1, Math.floor(elapsedPopMs / perBallMs)));
+    const settledNumbers = fullCombination.slice(0, settledCount);
+    setInitialSettledNumbers(settledNumbers);
+    setVisibleDrawnNumbers(settledNumbers);
     setActiveDrawnNumbers(fullCombination.slice(0, DRAW_COUNT));
   };
 
@@ -679,6 +703,8 @@ export default function App() {
     simulateLeaderboardActivity(combination);
     setActiveDrawnNumbers([]);
     setVisibleDrawnNumbers([]);
+    setInitialSettledNumbers([]);
+    drawingDrawIdRef.current = null;
     setDrawingDrawId(null);
     const nextDrawId = String(Number(completedDrawId) + 1);
     const nextRoundClosesAtMs = getRoundCloseMs(undefined, nextDrawId);
@@ -1012,6 +1038,7 @@ export default function App() {
                 isPlacingBet={isPlacingBet}
                 betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
+                initialSettledNumbers={initialSettledNumbers}
                 highlightNumbers={activeTicketHighlightNumbers}
                 onVisibleDrawnNumbersChange={setVisibleDrawnNumbers}
                 onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}
@@ -1056,6 +1083,7 @@ export default function App() {
                 isPlacingBet={isPlacingBet}
                 betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
+                initialSettledNumbers={initialSettledNumbers}
                 highlightNumbers={activeTicketHighlightNumbers}
                 onVisibleDrawnNumbersChange={setVisibleDrawnNumbers}
                 onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}

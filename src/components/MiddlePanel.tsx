@@ -15,6 +15,7 @@ interface MiddlePanelProps {
   isPlacingBet?: boolean;
   betAcceptedFlash?: boolean;
   activeDrawnNumbers: number[];
+  initialSettledNumbers?: number[];
   highlightNumbers?: number[];
   onVisibleDrawnNumbersChange?: (numbers: number[]) => void;
   onDrawAnimationComplete?: () => void;
@@ -37,6 +38,7 @@ export default function MiddlePanel({
   isPlacingBet = false,
   betAcceptedFlash = false,
   activeDrawnNumbers,
+  initialSettledNumbers = [],
   highlightNumbers = selectedNumbers,
   onVisibleDrawnNumbersChange,
   onDrawAnimationComplete,
@@ -152,6 +154,10 @@ export default function MiddlePanel({
       incomingQueueRef.current = [];
       isProcessingRef.current = false;
       return;
+    }
+
+    if (initialSettledNumbers.length > 0 && settledBallsRef.current.length === 0) {
+      updateSettledBalls(initialSettledNumbers);
     }
 
     // Add any fresh balls to queue
