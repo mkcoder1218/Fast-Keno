@@ -35,13 +35,23 @@ export function getAuthToken(value: unknown) {
 }
 
 export function mapBackendRound(round: any) {
+  const startsAtMs = round?.startsAt ? new Date(round.startsAt).getTime() : NaN;
   const closesAtMs = new Date(round?.closesAt || Date.now()).getTime();
+  const normalizedClosesAtMs = Number.isFinite(startsAtMs)
+    ? startsAtMs + 60 * 1000
+    : closesAtMs;
+  const endsAtMs = Number.isFinite(startsAtMs)
+    ? startsAtMs + 90 * 1000
+    : normalizedClosesAtMs + 30 * 1000;
+  const secondsRemaining = Math.max(0, Math.ceil((normalizedClosesAtMs - Date.now()) / 1000));
+
   return {
     drawId: String(round?.roundNumber || round?.id || ''),
     id: round?.id,
     startsAt: round?.startsAt,
-    closesAt: round?.closesAt,
-    secondsRemaining: Math.max(0, Math.ceil((closesAtMs - Date.now()) / 1000)),
+    closesAt: new Date(normalizedClosesAtMs).toISOString(),
+    endsAt: round?.endsAt || new Date(endsAtMs).toISOString(),
+    secondsRemaining: Math.min(secondsRemaining, 60),
   };
 }
 

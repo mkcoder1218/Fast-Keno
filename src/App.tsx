@@ -91,18 +91,38 @@ export default function App() {
   const initialDrawId = String(Math.floor(Date.now() / (ROUND_SECONDS * 1000)));
 
   const getRoundCloseMs = (round?: any, fallbackDrawId?: string) => {
+    const serverNowMs = getServerNowMs();
+    const maxWaitCloseMs = serverNowMs + WAIT_SECONDS * 1000;
+    const startsAtMs = round?.startsAt ? new Date(round.startsAt).getTime() : NaN;
+    if (Number.isFinite(startsAtMs)) {
+      const normalizedCloseMs = startsAtMs + WAIT_SECONDS * 1000;
+      if (normalizedCloseMs > serverNowMs) {
+        return Math.min(normalizedCloseMs, maxWaitCloseMs);
+      }
+    }
+
+    if (round?.secondsRemaining !== undefined) {
+      const secondsRemaining = Math.max(0, Number(round.secondsRemaining || 0));
+      if (Number.isFinite(secondsRemaining)) {
+        return serverNowMs + Math.min(secondsRemaining, WAIT_SECONDS) * 1000;
+      }
+    }
+
     const closesAtMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
     if (Number.isFinite(closesAtMs)) {
-      return closesAtMs;
+      return Math.min(closesAtMs, maxWaitCloseMs);
     }
 
     const drawId = String(round?.drawId || round?.roundNumber || round?.id || fallbackDrawId || initialDrawId);
     const numericDrawId = Number(drawId);
     if (Number.isFinite(numericDrawId)) {
-      return numericDrawId * ROUND_SECONDS * 1000 + WAIT_SECONDS * 1000;
+      const normalizedCloseMs = numericDrawId * ROUND_SECONDS * 1000 + WAIT_SECONDS * 1000;
+      if (normalizedCloseMs > serverNowMs) {
+        return Math.min(normalizedCloseMs, maxWaitCloseMs);
+      }
     }
 
-    return Date.now() + WAIT_SECONDS * 1000;
+    return maxWaitCloseMs;
   };
 
   // Gameplay States
@@ -431,7 +451,10 @@ export default function App() {
             setCountdown(getSecondsUntil(nextRoundClosesAtMs));
           }
           if (round?.secondsRemaining !== undefined) {
-            const fallbackCloseMs = getServerNowMs() + Math.max(0, Number(round.secondsRemaining || 0)) * 1000;
+            const fallbackCloseMs = getServerNowMs() + Math.min(
+              Math.max(0, Number(round.secondsRemaining || 0)),
+              WAIT_SECONDS
+            ) * 1000;
             setRoundClosesAtMs(fallbackCloseMs);
             setCountdown(getSecondsUntil(fallbackCloseMs));
           }
