@@ -125,6 +125,24 @@ export default function App() {
     return Math.max(0, Math.ceil((targetMs - getServerNowMs()) / 1000));
   };
 
+  const getGlobalRoundState = (nowMs = getServerNowMs()) => {
+    const cycleMs = ROUND_SECONDS * 1000;
+    const cycleIndex = Math.floor(nowMs / cycleMs);
+    const cycleStartedAtMs = cycleIndex * cycleMs;
+    const elapsedCycleMs = nowMs - cycleStartedAtMs;
+    const isDrawingPhase = elapsedCycleMs < POP_SECONDS * 1000;
+    const targetMs = cycleStartedAtMs + ROUND_SECONDS * 1000;
+
+    return {
+      cycleIndex,
+      cycleStartedAtMs,
+      elapsedCycleMs,
+      isDrawingPhase,
+      targetMs,
+      countdown: Math.max(0, Math.ceil((targetMs - nowMs) / 1000)),
+    };
+  };
+
   const syncServerTime = (value: unknown) => {
     const serverMs = typeof value === 'number' ? value : new Date(String(value || '')).getTime();
     if (Number.isFinite(serverMs)) {
@@ -139,26 +157,21 @@ export default function App() {
     const nextDrawId = String(round.drawId || round.roundNumber || round.id || '');
     if (!nextDrawId) return;
 
-    const serverNowMs = getServerNowMs();
-    const cycleMs = ROUND_SECONDS * 1000;
-    const cycleIndex = Math.floor(serverNowMs / cycleMs);
-    const cycleStartedAtMs = cycleIndex * cycleMs;
-    const elapsedCycleMs = serverNowMs - cycleStartedAtMs;
-    const isGlobalDrawingPhase = elapsedCycleMs < POP_SECONDS * 1000;
-    const globalDrawId = String(cycleIndex);
+    const globalState = getGlobalRoundState();
+    const globalDrawId = String(globalState.cycleIndex);
 
-    if (isGlobalDrawingPhase) {
-      const drawingCountdownTargetMs = cycleStartedAtMs + ROUND_SECONDS * 1000;
+    if (globalState.isDrawingPhase) {
+      const drawingCountdownTargetMs = globalState.targetMs;
       setRoundClosesAtMs(drawingCountdownTargetMs);
       setCountdown(getSecondsUntil(drawingCountdownTargetMs));
       if (!isDrawing && globalDrawId !== drawingDrawIdRef.current) {
-        void triggerLiveDrawing(globalDrawId, elapsedCycleMs, drawingCountdownTargetMs);
+        void triggerLiveDrawing(globalDrawId, globalState.elapsedCycleMs, drawingCountdownTargetMs);
       }
       return;
     }
 
-    const nextDrawIdForWait = String(cycleIndex + 1);
-    const nextWaitEndsAtMs = cycleStartedAtMs + ROUND_SECONDS * 1000;
+    const nextDrawIdForWait = String(globalState.cycleIndex + 1);
+    const nextWaitEndsAtMs = globalState.targetMs;
 
     if (
       clientWaitDrawIdRef.current === nextDrawIdForWait &&
@@ -213,14 +226,17 @@ export default function App() {
   const [coldNumbers, setColdNumbers] = useState<HotColdNumber[]>(COLD_NUMBERS);
 
   // Timer & Ball Extraction State
-  const [roundClosesAtMs, setRoundClosesAtMs] = useState<number>(() => getRoundCloseMs(undefined, initialDrawId));
-  const [countdown, setCountdown] = useState<number>(() => getSecondsUntil(getRoundCloseMs(undefined, initialDrawId)));
+  const [roundClosesAtMs, setRoundClosesAtMs] = useState<number>(() => getGlobalRoundState().targetMs);
+  const [countdown, setCountdown] = useState<number>(() => getGlobalRoundState().countdown);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [isPlacingBet, setIsPlacingBet] = useState<boolean>(false);
   const [activeDrawnNumbers, setActiveDrawnNumbers] = useState<number[]>([]);
   const [visibleDrawnNumbers, setVisibleDrawnNumbers] = useState<number[]>([]);
   const [initialSettledNumbers, setInitialSettledNumbers] = useState<number[]>([]);
-  const [currentDrawId, setCurrentDrawId] = useState<string>(initialDrawId);
+  const [currentDrawId, setCurrentDrawId] = useState<string>(() => {
+    const state = getGlobalRoundState();
+    return String(state.isDrawingPhase ? state.cycleIndex : state.cycleIndex + 1);
+  });
   const [drawingDrawId, setDrawingDrawId] = useState<string | null>(null);
   const activeTicketHighlightNumbers = useMemo(
     () => Array.from(new Set([
