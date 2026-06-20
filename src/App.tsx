@@ -139,59 +139,42 @@ export default function App() {
     const nextDrawId = String(round.drawId || round.roundNumber || round.id || '');
     if (!nextDrawId) return;
 
-    const secondsRemaining = Number(round.secondsRemaining);
-    const startsAtMs = round?.startsAt ? new Date(round.startsAt).getTime() : NaN;
-    const closesAtMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
-    const endsAtMs = round?.endsAt ? new Date(round.endsAt).getTime() : NaN;
     const serverNowMs = getServerNowMs();
-    const startsInFuture = Number.isFinite(startsAtMs) && serverNowMs < startsAtMs;
-    const drawIdToPlay = startsInFuture ? String(Number(nextDrawId) - 1) : nextDrawId;
-    const drawingEndsAtMs = startsInFuture && Number.isFinite(startsAtMs)
-      ? startsAtMs
-      : Number.isFinite(endsAtMs)
-        ? endsAtMs
-        : Number.isFinite(closesAtMs)
-          ? closesAtMs + POP_SECONDS * 1000
-          : NaN;
-    const drawingCountdownTargetMs = Number.isFinite(drawingEndsAtMs)
-      ? drawingEndsAtMs + WAIT_SECONDS * 1000
-      : undefined;
-    const elapsedPopMsFromDates = startsInFuture && Number.isFinite(startsAtMs)
-      ? serverNowMs - (startsAtMs - POP_SECONDS * 1000)
-      : Number.isFinite(closesAtMs)
-        ? serverNowMs - closesAtMs
-        : (ROUND_SECONDS - secondsRemaining) * 1000;
-    if (
-      (round.phase === 'drawing' || (Number.isFinite(secondsRemaining) && secondsRemaining > WAIT_SECONDS)) &&
-      !isDrawing &&
-      drawIdToPlay !== drawingDrawIdRef.current
-    ) {
-      const elapsedPopMs = Math.max(
-        0,
-        Math.min(POP_SECONDS * 1000, elapsedPopMsFromDates)
-      );
-      void triggerLiveDrawing(drawIdToPlay, elapsedPopMs, drawingCountdownTargetMs);
+    const cycleMs = ROUND_SECONDS * 1000;
+    const cycleIndex = Math.floor(serverNowMs / cycleMs);
+    const cycleStartedAtMs = cycleIndex * cycleMs;
+    const elapsedCycleMs = serverNowMs - cycleStartedAtMs;
+    const isGlobalDrawingPhase = elapsedCycleMs < POP_SECONDS * 1000;
+    const globalDrawId = String(cycleIndex);
+
+    if (isGlobalDrawingPhase) {
+      const drawingCountdownTargetMs = cycleStartedAtMs + ROUND_SECONDS * 1000;
+      setRoundClosesAtMs(drawingCountdownTargetMs);
+      setCountdown(getSecondsUntil(drawingCountdownTargetMs));
+      if (!isDrawing && globalDrawId !== drawingDrawIdRef.current) {
+        void triggerLiveDrawing(globalDrawId, elapsedCycleMs, drawingCountdownTargetMs);
+      }
       return;
     }
 
+    const nextDrawIdForWait = String(cycleIndex + 1);
+    const nextWaitEndsAtMs = cycleStartedAtMs + ROUND_SECONDS * 1000;
+
     if (
-      clientWaitDrawIdRef.current === nextDrawId &&
+      clientWaitDrawIdRef.current === nextDrawIdForWait &&
       clientWaitEndsAtRef.current > getServerNowMs() &&
       !isDrawing
     ) {
-      setCurrentDrawId(nextDrawId);
+      setCurrentDrawId(nextDrawIdForWait);
       setRoundClosesAtMs(clientWaitEndsAtRef.current);
       setCountdown(getSecondsUntil(clientWaitEndsAtRef.current));
       return;
     }
 
-    const nextWaitEndsAtMs = Number.isFinite(closesAtMs)
-      ? closesAtMs
-      : getServerNowMs() + Math.max(0, Math.min(WAIT_SECONDS, secondsRemaining || WAIT_SECONDS)) * 1000;
     const nextCountdown = getSecondsUntil(nextWaitEndsAtMs);
-    clientWaitDrawIdRef.current = nextDrawId;
+    clientWaitDrawIdRef.current = nextDrawIdForWait;
     clientWaitEndsAtRef.current = nextWaitEndsAtMs;
-    setCurrentDrawId(nextDrawId);
+    setCurrentDrawId(nextDrawIdForWait);
     setRoundClosesAtMs(nextWaitEndsAtMs);
     setCountdown(nextCountdown);
   };
