@@ -139,6 +139,22 @@ export default function App() {
     const nextDrawId = String(round.drawId || round.roundNumber || round.id || '');
     if (!nextDrawId) return;
 
+    const secondsRemaining = Number(round.secondsRemaining);
+    const previousDrawId = String(Number(nextDrawId) - 1);
+    if (
+      Number.isFinite(secondsRemaining) &&
+      secondsRemaining > WAIT_SECONDS &&
+      !isDrawing &&
+      previousDrawId !== drawingDrawIdRef.current
+    ) {
+      const elapsedPopMs = Math.max(
+        0,
+        Math.min(POP_SECONDS * 1000, (ROUND_SECONDS - secondsRemaining) * 1000)
+      );
+      void triggerLiveDrawing(previousDrawId, elapsedPopMs);
+      return;
+    }
+
     if (
       clientWaitDrawIdRef.current === nextDrawId &&
       clientWaitEndsAtRef.current > getServerNowMs() &&
@@ -147,19 +163,6 @@ export default function App() {
       setCurrentDrawId(nextDrawId);
       setRoundClosesAtMs(clientWaitEndsAtRef.current);
       setCountdown(getSecondsUntil(clientWaitEndsAtRef.current));
-      return;
-    }
-
-    const secondsRemaining = Number(round.secondsRemaining);
-    const previousDrawId = String(Number(nextDrawId) - 1);
-    if (
-      Number.isFinite(secondsRemaining) &&
-      secondsRemaining > POP_SECONDS &&
-      !isDrawing &&
-      previousDrawId !== drawingDrawIdRef.current
-    ) {
-      const elapsedPopMs = (WAIT_SECONDS - Math.min(secondsRemaining, WAIT_SECONDS)) * 1000;
-      triggerLiveDrawing(previousDrawId, elapsedPopMs);
       return;
     }
 
@@ -566,14 +569,19 @@ export default function App() {
     setVisibleDrawnNumbers([]);
     setInitialSettledNumbers([]);
     
-    let fullCombination = generateSeededCombination(roundDrawId, DRAW_COUNT, 1, 80);
+    const fullCombination = generateSeededCombination(roundDrawId, DRAW_COUNT, 1, 80);
+    const perBallMs = (POP_SECONDS * 1000) / DRAW_COUNT;
+    const settledCount = Math.max(0, Math.min(DRAW_COUNT - 1, Math.floor(elapsedPopMs / perBallMs)));
+    const settledNumbers = fullCombination.slice(0, settledCount);
     settledRoundRef.current = null;
+    setInitialSettledNumbers(settledNumbers);
+    setVisibleDrawnNumbers(settledNumbers);
+    setActiveDrawnNumbers(fullCombination.slice(0, DRAW_COUNT));
 
     const settleController = new AbortController();
     const settleTimeout = window.setTimeout(() => settleController.abort(), launchAuthToken ? 8000 : 1500);
 
-    try {
-      const res = await fetch('/api/fast-keno/settle', {
+    fetch('/api/fast-keno/settle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: settleController.signal,
@@ -583,30 +591,22 @@ export default function App() {
           authToken: launchAuthToken,
           backendApiBase: launchBackendApiBase,
         }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.message || 'Draw failed');
+      })
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok || !data?.ok) return;
+        const payloadDrawId = data.payload?.draw?.drawId ? String(data.payload.draw.drawId) : roundDrawId;
+        if (payloadDrawId !== roundDrawId) return;
 
-      syncServerTime(data.payload?.serverTime);
-      settledRoundRef.current = data.payload;
-      const payloadDrawId = data.payload?.draw?.drawId ? String(data.payload.draw.drawId) : roundDrawId;
-      if (payloadDrawId === roundDrawId && Array.isArray(data.payload?.draw?.combination)) {
-        fullCombination = data.payload.draw.combination.map(Number);
-      } else if (payloadDrawId !== roundDrawId) {
+        syncServerTime(data.payload?.serverTime);
+        settledRoundRef.current = data.payload;
+      })
+      .catch(() => {
         settledRoundRef.current = null;
-      }
-    } catch (error) {
-      settledRoundRef.current = null;
-    } finally {
-      window.clearTimeout(settleTimeout);
-    }
-
-    const perBallMs = (POP_SECONDS * 1000) / DRAW_COUNT;
-    const settledCount = Math.max(0, Math.min(DRAW_COUNT - 1, Math.floor(elapsedPopMs / perBallMs)));
-    const settledNumbers = fullCombination.slice(0, settledCount);
-    setInitialSettledNumbers(settledNumbers);
-    setVisibleDrawnNumbers(settledNumbers);
-    setActiveDrawnNumbers(fullCombination.slice(0, DRAW_COUNT));
+      })
+      .finally(() => {
+        window.clearTimeout(settleTimeout);
+      });
   };
 
   // Finalizes round, evaluates win/loss statuses
