@@ -529,17 +529,18 @@ export default function MiddlePanel({
             <div className="absolute left-1/2 -translate-x-1/2 top-[22px] md:top-[34px] text-center flex items-center justify-center select-none w-[120px] h-[28px]">
               {/* Soft background glow horizontal flare */}
               <div 
-                className="absolute inset-0 bg-[#06b6d4]/10 blur-[8px] rounded-full scale-y-[0.3]" 
+                className="absolute inset-0 bg-[#7ff7ff]/18 blur-[11px] rounded-full scale-y-[0.42]" 
                 style={{ mixBlendMode: 'screen' }}
               />
               <span 
-                className="tracking-[0.05em] relative z-10" 
+                className="tracking-[0.08em] relative z-10" 
                 style={{ 
-                  fontFamily: '"Share Tech Mono", "Orbitron", monospace',
-                  fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '20px' : '22px',
+                  fontFamily: '"DS Digital", "Orbitron", monospace',
+                  fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '23px' : '25px',
                   fontWeight: 700,
-                  color: '#f3ffff',
-                  textShadow: '0 0 4px rgba(6,182,212,0.4)'
+                  color: '#f6ffff',
+                  lineHeight: 1,
+                  textShadow: '0 0 2px rgba(255,255,255,0.95), 0 0 5px rgba(127,247,255,0.9), 0 0 12px rgba(34,211,238,0.52), 0 1px 0 rgba(0,0,0,0.95)',
                 }}
               >
                 {formatTimer(countdown)}
