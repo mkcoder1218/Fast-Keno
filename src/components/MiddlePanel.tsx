@@ -370,7 +370,7 @@ export default function MiddlePanel({
 
               {/* Large current drawn ball (absolutely overlay layer above the rows) */}
               <div 
-                className="absolute left-1/2 -translate-x-1/2 z-40 flex items-center justify-center animate-pulse" 
+                className="absolute left-1/2 -translate-x-1/2 z-40 flex items-center justify-center" 
                 id="drawing-center-ball"
                 style={{
                   top: `${Y_CENTER_BALL}px`,
