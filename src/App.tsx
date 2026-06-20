@@ -566,9 +566,7 @@ export default function App() {
     setVisibleDrawnNumbers([]);
     setInitialSettledNumbers([]);
     
-    let fullCombination = launchAuthToken
-      ? []
-      : generateSeededCombination(roundDrawId, DRAW_COUNT, 1, 80);
+    let fullCombination = generateSeededCombination(roundDrawId, DRAW_COUNT, 1, 80);
     settledRoundRef.current = null;
 
     const settleController = new AbortController();
@@ -599,31 +597,8 @@ export default function App() {
       }
     } catch (error) {
       settledRoundRef.current = null;
-      triggerToast(
-        error instanceof Error && error.name !== 'AbortError'
-          ? error.message
-          : 'Draw service is slow, using local draw.',
-        'error'
-      );
     } finally {
       window.clearTimeout(settleTimeout);
-    }
-
-    if (fullCombination.length === 0 && elapsedPopMs > 0) {
-      fullCombination = generateSeededCombination(roundDrawId, DRAW_COUNT, 1, 80);
-    }
-
-    if (fullCombination.length === 0) {
-      triggerToast(`Waiting for real result for Draw #${roundDrawId}.`, 'info');
-      drawingDrawIdRef.current = null;
-      setDrawingDrawId(null);
-      setIsDrawing(false);
-      window.setTimeout(() => {
-        if (currentDrawIdRef.current === roundDrawId) {
-          triggerLiveDrawing(roundDrawId);
-        }
-      }, 1000);
-      return;
     }
 
     const perBallMs = (POP_SECONDS * 1000) / DRAW_COUNT;
