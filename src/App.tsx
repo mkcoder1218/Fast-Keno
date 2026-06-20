@@ -152,6 +152,7 @@ export default function App() {
   const [activeDrawnNumbers, setActiveDrawnNumbers] = useState<number[]>([]);
   const [visibleDrawnNumbers, setVisibleDrawnNumbers] = useState<number[]>([]);
   const [currentDrawId, setCurrentDrawId] = useState<string>(initialDrawId);
+  const [drawingDrawId, setDrawingDrawId] = useState<string | null>(null);
   const activeTicketHighlightNumbers = useMemo(
     () => Array.from(new Set([
       ...selectedNumbers,
@@ -162,10 +163,21 @@ export default function App() {
     [selectedNumbers, tickets]
   );
   const ticketDrawHighlights = isDrawing ? visibleDrawnNumbers : [];
+  const displayedDrawId = drawingDrawId || currentDrawId;
 
   // Timer Ref to manage draw interval
   const ballTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const currentDrawIdRef = useRef<string>(initialDrawId);
+  const drawingDrawIdRef = useRef<string | null>(null);
   const settledRoundRef = useRef<any>(null);
+
+  useEffect(() => {
+    currentDrawIdRef.current = currentDrawId;
+  }, [currentDrawId]);
+
+  useEffect(() => {
+    drawingDrawIdRef.current = drawingDrawId;
+  }, [drawingDrawId]);
 
   const syncParentWallet = (nextBalance: number) => {
     if (typeof window === 'undefined' || window.parent === window) return;
@@ -304,7 +316,7 @@ export default function App() {
         setDrawResults(payload.draws.length ? payload.draws.map((draw: any) => ({
           drawId: draw.drawId,
           time: draw.time,
-          combination: draw.combination,
+          combination: generateSeededCombination(String(draw.drawId), DRAW_COUNT, 1, 80),
         })) : INITIAL_DRAWS);
         if (payload.payTable) {
           setPayTable(payload.payTable);
@@ -450,7 +462,7 @@ export default function App() {
 
       if (nextSeconds <= 0) {
         clearInterval(timer);
-        triggerLiveDrawing();
+        triggerLiveDrawing(currentDrawIdRef.current);
         return;
       }
 
@@ -464,16 +476,18 @@ export default function App() {
   }, [isDrawing, currentDrawId, roundClosesAtMs]);
 
   // Performs 20 numbers drawing sequentially
-  const triggerLiveDrawing = async () => {
+  const triggerLiveDrawing = async (drawIdToPlay = currentDrawIdRef.current) => {
     // If a drawing loop is already active, do NOT start another!
     if (ballTimerRef.current) {
       return;
     }
+    const roundDrawId = String(drawIdToPlay || currentDrawIdRef.current);
     setIsDrawing(true);
+    setDrawingDrawId(roundDrawId);
     setActiveDrawnNumbers([]);
     setVisibleDrawnNumbers([]);
     
-    let fullCombination = generateSeededCombination(currentDrawId, DRAW_COUNT, 1, 80);
+    let fullCombination = generateSeededCombination(roundDrawId, DRAW_COUNT, 1, 80);
     settledRoundRef.current = null;
 
     const settleController = new AbortController();
@@ -486,7 +500,7 @@ export default function App() {
         signal: settleController.signal,
         body: JSON.stringify({
           userId,
-          drawId: currentDrawId,
+          drawId: roundDrawId,
           authToken: launchAuthToken,
           backendApiBase: launchBackendApiBase,
         }),
@@ -495,8 +509,9 @@ export default function App() {
       if (!res.ok || !data?.ok) throw new Error(data?.message || 'Draw failed');
 
       settledRoundRef.current = data.payload;
-      if (Array.isArray(data.payload?.draw?.combination)) {
-        fullCombination = data.payload.draw.combination;
+      const payloadDrawId = data.payload?.draw?.drawId ? String(data.payload.draw.drawId) : roundDrawId;
+      if (payloadDrawId !== roundDrawId) {
+        settledRoundRef.current = null;
       }
     } catch (error) {
       settledRoundRef.current = null;
@@ -514,16 +529,17 @@ export default function App() {
 
   // Finalizes round, evaluates win/loss statuses
   const finalizeDrawRound = (combination: number[]) => {
+    const completedDrawId = drawingDrawIdRef.current || currentDrawIdRef.current;
     const timeNow = new Date().toLocaleTimeString('en-US', { hour12: false });
     
     const newDrawRecord: DrawResult = {
-      drawId: currentDrawId,
+      drawId: completedDrawId,
       time: timeNow,
       combination: [...combination].sort((a, b) => a - b),
     };
     
     setDrawResults((prev) => {
-      if (prev.some((r) => r.drawId === currentDrawId)) {
+      if (prev.some((r) => r.drawId === completedDrawId)) {
         return prev;
       }
       return [newDrawRecord, ...prev];
@@ -532,7 +548,7 @@ export default function App() {
     const serviceResult = settledRoundRef.current;
     let totalWinnings = Number(serviceResult?.totalWinnings || 0);
     let totalMatchedTickets = Array.isArray(serviceResult?.tickets)
-      ? serviceResult.tickets.filter((t: Ticket) => t.drawId === currentDrawId).length
+      ? serviceResult.tickets.filter((t: Ticket) => t.drawId === completedDrawId).length
       : 0;
 
     if (serviceResult) {
@@ -543,7 +559,7 @@ export default function App() {
       }
       mergeTickets(serviceResult.tickets);
       setTickets((prevTickets) => prevTickets.map((t) => {
-        if (t.isMine !== false || t.status !== 'Waiting' || t.drawId !== currentDrawId) return t;
+        if (t.isMine !== false || t.status !== 'Waiting' || t.drawId !== completedDrawId) return t;
         const matchedNumbers = t.selectedNumbers.filter((n) => combination.includes(n));
         const matchedCount = matchedNumbers.length;
         const multiplier = getMultiplier(payTable, t.selectedNumbers.length, matchedCount);
@@ -559,12 +575,12 @@ export default function App() {
       setDrawResults(serviceResult.draws.map((draw: any) => ({
         drawId: draw.drawId,
         time: draw.time,
-        combination: draw.combination,
+        combination: generateSeededCombination(String(draw.drawId), DRAW_COUNT, 1, 80),
       })));
     } else {
       setTickets((prevTickets) => {
         return prevTickets.map((t) => {
-          if (t.status !== 'Waiting' || t.drawId !== currentDrawId) return t;
+          if (t.status !== 'Waiting' || t.drawId !== completedDrawId) return t;
 
           const matchedNumbers = t.selectedNumbers.filter((n) => combination.includes(n));
           const matchedCount = matchedNumbers.length;
@@ -598,14 +614,15 @@ export default function App() {
     } else if (totalMatchedTickets > 0) {
       playLossSound();
     } else {
-      triggerToast(`⭐ Round #${currentDrawId} completed successfully. Ready for new bets!`, 'info');
+      triggerToast(`⭐ Round #${completedDrawId} completed successfully. Ready for new bets!`, 'info');
     }
 
     updateStatistics(combination);
     simulateLeaderboardActivity(combination);
     setActiveDrawnNumbers([]);
     setVisibleDrawnNumbers([]);
-    const nextDrawId = String(Number(currentDrawId) + 1);
+    setDrawingDrawId(null);
+    const nextDrawId = String(Number(completedDrawId) + 1);
     const nextRoundClosesAtMs = getRoundCloseMs(undefined, nextDrawId);
     setCurrentDrawId(nextDrawId);
     setRoundClosesAtMs(nextRoundClosesAtMs);
@@ -941,7 +958,7 @@ export default function App() {
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}
                 coldNumbersList={coldNumbers.map((cn) => cn.num)}
                 countdown={countdown}
-                drawId={currentDrawId}
+                drawId={displayedDrawId}
                 payTable={payTable}
               />
             </div>
@@ -955,7 +972,7 @@ export default function App() {
                 coldNumbers={coldNumbers}
                 isDrawing={isDrawing}
                 activeDrawnNumbers={activeDrawnNumbers}
-                drawId={currentDrawId}
+                drawId={displayedDrawId}
                 onSelectHistoricCombination={handleSelectHistoricCombination}
               />
             </div>
@@ -985,7 +1002,7 @@ export default function App() {
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}
                 coldNumbersList={coldNumbers.map((cn) => cn.num)}
                 countdown={countdown}
-                drawId={currentDrawId}
+                drawId={displayedDrawId}
                 payTable={payTable}
               />
             </div>
@@ -1047,7 +1064,7 @@ export default function App() {
                   coldNumbers={coldNumbers}
                   isDrawing={isDrawing}
                   activeDrawnNumbers={activeDrawnNumbers}
-                  drawId={currentDrawId}
+                  drawId={displayedDrawId}
                   onSelectHistoricCombination={handleSelectHistoricCombination}
                   forceTab="RESULTS"
                   hideHeaderAndQuickMenu
@@ -1061,7 +1078,7 @@ export default function App() {
                   coldNumbers={coldNumbers}
                   isDrawing={isDrawing}
                   activeDrawnNumbers={activeDrawnNumbers}
-                  drawId={currentDrawId}
+                  drawId={displayedDrawId}
                   onSelectHistoricCombination={handleSelectHistoricCombination}
                   forceTab="STATISTICS"
                   hideHeaderAndQuickMenu
@@ -1075,7 +1092,7 @@ export default function App() {
                   coldNumbers={coldNumbers}
                   isDrawing={isDrawing}
                   activeDrawnNumbers={activeDrawnNumbers}
-                  drawId={currentDrawId}
+                  drawId={displayedDrawId}
                   onSelectHistoricCombination={handleSelectHistoricCombination}
                   forceTab="LEADERS"
                   hideHeaderAndQuickMenu
