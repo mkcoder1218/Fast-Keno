@@ -61,7 +61,7 @@ export default function MiddlePanel({
   const POP_DURATION = 300;
   const STATIONARY_DURATION = 320;
   const FLY_DURATION = 480;
-  const NEXT_BALL_DELAY = 320;
+  const NEXT_BALL_DELAY = 400;
 
   // Local state for animation queue
   const [settledBalls, setSettledBalls] = React.useState<number[]>([]);
@@ -123,12 +123,12 @@ export default function MiddlePanel({
       setCurrentBall(null);
       setAnimationPhase('idle');
 
+      // 5. Pause briefly before drawing the next ball
+      await delay(NEXT_BALL_DELAY);
+
       if (newSettled.length === 20) {
         onDrawAnimationComplete?.();
       }
-
-      // 5. Pause briefly before drawing the next ball
-      await delay(NEXT_BALL_DELAY);
     }
 
     isProcessingRef.current = false;

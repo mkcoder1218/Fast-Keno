@@ -35,7 +35,9 @@ interface FastKenoState {
 const DATA_DIR = process.env.FAST_KENO_DATA_DIR || path.join(os.tmpdir(), 'fast-keno');
 const DATA_FILE = path.join(DATA_DIR, 'fast-keno.json');
 const DEFAULT_BALANCE = 10000;
-const DRAW_SECONDS = 60;
+const WAIT_SECONDS = 60;
+const POP_SECONDS = 30;
+const ROUND_SECONDS = WAIT_SECONDS + POP_SECONDS;
 let memoryState: FastKenoState | null = null;
 
 const ENCRYPTED_PAY_TABLE = {
@@ -110,18 +112,20 @@ function money(value: number) {
 }
 
 function getDrawId(now = Date.now()) {
-  return String(Math.floor(now / (DRAW_SECONDS * 1000)));
+  return String(Math.floor(now / (ROUND_SECONDS * 1000)));
 }
 
 function getRound(now = Date.now()) {
   const drawId = getDrawId(now);
-  const startsAt = Number(drawId) * DRAW_SECONDS * 1000;
-  const closesAt = startsAt + DRAW_SECONDS * 1000;
+  const startsAt = Number(drawId) * ROUND_SECONDS * 1000;
+  const closesAt = startsAt + WAIT_SECONDS * 1000;
+  const endsAt = startsAt + ROUND_SECONDS * 1000;
 
   return {
     drawId,
     startsAt: new Date(startsAt).toISOString(),
     closesAt: new Date(closesAt).toISOString(),
+    endsAt: new Date(endsAt).toISOString(),
     secondsRemaining: Math.max(0, Math.ceil((closesAt - now) / 1000)),
   };
 }
@@ -247,7 +251,7 @@ export const fastKenoService = {
 
   settle(input: { userId?: string; drawId?: string }) {
     const userId = String(input.userId || 'demo');
-    const drawId = String(input.drawId || getDrawId(Date.now() - DRAW_SECONDS * 1000));
+    const drawId = String(input.drawId || getDrawId());
     const state = readState();
     syncBalance(state, userId, null);
 

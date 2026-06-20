@@ -77,7 +77,9 @@ function normalizeSocketTicket(raw: any): Ticket | null {
 
 export default function App() {
   const DRAW_COUNT = 20;
-  const DRAW_SECONDS = 60;
+  const WAIT_SECONDS = 60;
+  const POP_SECONDS = 30;
+  const ROUND_SECONDS = WAIT_SECONDS + POP_SECONDS;
   const launchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const launchUserId = launchParams?.get('userId') || '881426785';
   const launchBalance = Number(launchParams?.get('balance') || 90.37);
@@ -86,7 +88,7 @@ export default function App() {
   const launchSocketUrl = launchParams?.get('fastKenoSocketUrl') || launchParams?.get('socketUrl') || '';
   const isEmbeddedInKing5 = launchParams?.get('embedded') === 'king5';
   const shortUserId = launchUserId.length > 8 ? launchUserId.slice(-8) : launchUserId;
-  const initialDrawId = String(Math.floor(Date.now() / (DRAW_SECONDS * 1000)));
+  const initialDrawId = String(Math.floor(Date.now() / (ROUND_SECONDS * 1000)));
 
   const getRoundCloseMs = (round?: any, fallbackDrawId?: string) => {
     const closesAtMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
@@ -97,10 +99,10 @@ export default function App() {
     const drawId = String(round?.drawId || round?.roundNumber || round?.id || fallbackDrawId || initialDrawId);
     const numericDrawId = Number(drawId);
     if (Number.isFinite(numericDrawId)) {
-      return (numericDrawId + 1) * DRAW_SECONDS * 1000;
+      return numericDrawId * ROUND_SECONDS * 1000 + WAIT_SECONDS * 1000;
     }
 
-    return Date.now() + DRAW_SECONDS * 1000;
+    return Date.now() + WAIT_SECONDS * 1000;
   };
 
   const getSecondsUntil = (targetMs: number) => {
@@ -533,6 +535,11 @@ export default function App() {
       triggerToast(`Waiting for real result for Draw #${roundDrawId}.`, 'info');
       setDrawingDrawId(null);
       setIsDrawing(false);
+      window.setTimeout(() => {
+        if (currentDrawIdRef.current === roundDrawId) {
+          triggerLiveDrawing(roundDrawId);
+        }
+      }, 1000);
       return;
     }
 
