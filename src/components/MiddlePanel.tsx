@@ -651,75 +651,22 @@ export default function MiddlePanel({
                   <div className="absolute top-1/2 -translate-y-1/2 left-[12%] w-[260px] h-[260px] rounded-full border border-[#39d98a]/10 animate-pulse"></div>
                 </div>
 
-                {/* Small blue-grey ball 80 */}
-                <div 
-                  className="absolute rounded-full keno-ball-blue-glossy-sm flex items-center justify-center font-mono z-10"
+                <img
+                  src="/balls.png"
+                  alt=""
+                  className="absolute z-30 pointer-events-none select-none"
                   style={{
-                    left: '-10px',
-                    top: '12px',
-                    width: '24px',
-                    height: '24px'
+                    left: typeof window !== 'undefined' && window.innerWidth < 768 ? '-16px' : '-12px',
+                    top: typeof window !== 'undefined' && window.innerWidth < 768 ? '-2px' : '-4px',
+                    width: typeof window !== 'undefined' && window.innerWidth < 768 ? '88px' : '118px',
+                    height: 'auto',
                   }}
-                >
-                  <span 
-                    className="select-none tracking-tighter shadow-sm text-white" 
-                    style={{ 
-                      fontWeight: 900, 
-                      fontSize: '11px',
-                    }}
-                  >
-                    80
-                  </span>
-                </div>
-
-                {/* Small grey/blue ball 10 */}
-                <div 
-                  className="absolute rounded-full keno-ball-blue-glossy-sm flex items-center justify-center font-mono z-20"
-                  style={{
-                    left: '22px',
-                    top: '3px',
-                    width: '38px',
-                    height: '38px',
-                    transform: 'rotate(-18deg)'
-                  }}
-                >
-                  <span 
-                    className="select-none text-center text-white"
-                    style={{ 
-                      fontWeight: 900, 
-                      fontSize: '18px',
-                    }}
-                  >
-                    10
-                  </span>
-                </div>
-
-                {/* Large neon glass-green ball 1 */}
-                <div 
-                  className="absolute rounded-full keno-ball-green-glossy-lg flex items-center justify-center font-mono z-30"
-                  style={{
-                    left: '-17px',
-                    top: '38px',
-                    width: '60px',
-                    height: '60px',
-                    transform: 'rotate(-18deg)'
-                  }}
-                >
-                  <span 
-                    className="select-none text-center text-white"
-                    style={{ 
-                      fontWeight: 900, 
-                      fontSize: '32px',
-                    }}
-                  >
-                    1
-                  </span>
-                </div>
+                />
 
                 {/* Instructions */}
                 <div 
                   className="absolute text-left font-sans flex flex-col justify-start leading-tight z-10"
-                  style={{ left: typeof window !== 'undefined' && window.innerWidth < 768 ? '60px' : '116px', top: typeof window !== 'undefined' && window.innerWidth < 768 ? '38px' : '48px' }}
+                  style={{ left: typeof window !== 'undefined' && window.innerWidth < 768 ? '76px' : '126px', top: typeof window !== 'undefined' && window.innerWidth < 768 ? '38px' : '48px' }}
                 >
                   <h2 className="text-[18px] md:text-[22px] font-bold tracking-tight text-white normal-case leading-none">Choose 10 numbers</h2>
                   <p className="text-[14px] md:text-[16px] font-medium text-[#39d98a] tracking-normal mt-1 leading-none normal-case">From 1 to 80</p>
