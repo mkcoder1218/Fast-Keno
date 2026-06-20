@@ -70,6 +70,7 @@ function normalizeSocketTicket(raw: any): Ticket | null {
     matchedCount: raw.matchedCount ?? raw.hits,
     matchedNumbers: Array.isArray(raw.matchedNumbers) ? raw.matchedNumbers.map(Number) : [],
     isMine: raw.isMine,
+    receivedAt: Date.now(),
   };
 }
 
@@ -99,6 +100,7 @@ export default function App() {
   const [activeNavItem, setActiveNavItem] = useState<string>('GAMES');
   const [placingTicketIds, setPlacingTicketIds] = useState<string[]>([]);
   const [betAcceptedFlash, setBetAcceptedFlash] = useState<boolean>(false);
+  const [isSocketConnected, setIsSocketConnected] = useState<boolean>(false);
 
   // Viewport states for mobile flexibility
   const [windowWidth, setWindowWidth] = useState<number>(
@@ -158,13 +160,22 @@ export default function App() {
   const mergeTickets = (nextTickets: Ticket[]) => {
     setTickets((prev) => {
       const byId = new Map<string, Ticket>();
-      [...prev, ...nextTickets].forEach((ticket) => byId.set(ticket.id, ticket));
+      [...prev, ...nextTickets].forEach((ticket) => {
+        const existing = byId.get(ticket.id);
+        byId.set(ticket.id, {
+          ...existing,
+          ...ticket,
+          receivedAt: ticket.receivedAt ?? existing?.receivedAt ?? Date.now(),
+        });
+      });
       return Array.from(byId.values()).sort((a, b) => {
         if (a.status === 'Waiting' && b.status !== 'Waiting') return -1;
         if (a.status !== 'Waiting' && b.status === 'Waiting') return 1;
         if (a.status === 'Waiting' && b.status === 'Waiting') {
-          if (a.isMine !== false && b.isMine === false) return -1;
-          if (a.isMine === false && b.isMine !== false) return 1;
+          const receivedDiff = Number(b.receivedAt || 0) - Number(a.receivedAt || 0);
+          if (receivedDiff !== 0) return receivedDiff;
+          const betDiff = Number(b.betAmount || 0) - Number(a.betAmount || 0);
+          if (betDiff !== 0) return betDiff;
         }
         return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
       });
@@ -182,6 +193,7 @@ export default function App() {
       winAmount: 0,
       drawId,
       isMine: false,
+      receivedAt: Date.now() + index,
     }))
   );
 
@@ -204,8 +216,10 @@ export default function App() {
         if (a.status === 'Waiting' && b.status !== 'Waiting') return -1;
         if (a.status !== 'Waiting' && b.status === 'Waiting') return 1;
         if (a.status === 'Waiting' && b.status === 'Waiting') {
-          if (a.isMine !== false && b.isMine === false) return -1;
-          if (a.isMine === false && b.isMine !== false) return 1;
+          const receivedDiff = Number(b.receivedAt || 0) - Number(a.receivedAt || 0);
+          if (receivedDiff !== 0) return receivedDiff;
+          const betDiff = Number(b.betAmount || 0) - Number(a.betAmount || 0);
+          if (betDiff !== 0) return betDiff;
         }
         return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
       });
@@ -223,7 +237,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isDrawing || !currentDrawId) return;
+    if (isDrawing || !currentDrawId || isSocketConnected) return;
 
     ensureOtherPlayerTickets(currentDrawId, 5);
     const timer = window.setInterval(() => {
@@ -231,7 +245,7 @@ export default function App() {
     }, 8000);
 
     return () => window.clearInterval(timer);
-  }, [currentDrawId, isDrawing]);
+  }, [currentDrawId, isDrawing, isSocketConnected]);
 
   const triggerToast = (_text: string, _type: 'success' | 'info' | 'error' = 'info') => {};
 
@@ -259,7 +273,10 @@ export default function App() {
           syncParentWallet(Number(payload.balance));
         }
         setTickets([
-          ...(payload.tickets || []),
+          ...(payload.tickets || []).map((ticket: Ticket, index: number) => ({
+            ...ticket,
+            receivedAt: Date.now() + index,
+          })),
           ...makeOtherPlayerTickets(String(payload.round.drawId), 4),
         ]);
         setDrawResults(payload.draws.length ? payload.draws.map((draw: any) => ({
@@ -303,9 +320,16 @@ export default function App() {
         socket = new WebSocket(url.toString());
 
         socket.addEventListener('open', () => {
+          setIsSocketConnected(true);
           socket?.send(JSON.stringify({
             type: 'subscribe',
             game: 'fast-keno',
+            userId,
+            authToken: launchAuthToken || undefined,
+          }));
+          socket?.send(JSON.stringify({
+            event: 'subscribe',
+            channel: 'games.fast-keno.tickets',
             userId,
             authToken: launchAuthToken || undefined,
           }));
@@ -322,10 +346,16 @@ export default function App() {
           const payload = message.payload || message.data || message;
           const rawTickets = Array.isArray(payload.tickets)
             ? payload.tickets
+            : Array.isArray(payload.bets)
+            ? payload.bets
+            : Array.isArray(payload.publicTickets)
+            ? payload.publicTickets
             : Array.isArray(payload)
             ? payload
             : payload.ticket
             ? [payload.ticket]
+            : payload.bet
+            ? [payload.bet]
             : [];
           const nextTickets = rawTickets
             .map(normalizeSocketTicket)
@@ -356,8 +386,12 @@ export default function App() {
         });
 
         socket.addEventListener('close', () => {
+          setIsSocketConnected(false);
           if (closedByCleanup) return;
           reconnectTimer = window.setTimeout(connect, 2500);
+        });
+        socket.addEventListener('error', () => {
+          setIsSocketConnected(false);
         });
       } catch {
         reconnectTimer = window.setTimeout(connect, 2500);
@@ -368,6 +402,7 @@ export default function App() {
 
     return () => {
       closedByCleanup = true;
+      setIsSocketConnected(false);
       if (reconnectTimer !== null) {
         window.clearTimeout(reconnectTimer);
       }
@@ -557,7 +592,10 @@ export default function App() {
       .then((data) => {
         if (!data?.ok) return;
         if (Array.isArray(data.payload.tickets)) {
-          mergeTickets(data.payload.tickets);
+          mergeTickets(data.payload.tickets.map((ticket: Ticket, index: number) => ({
+            ...ticket,
+            receivedAt: Date.now() + index,
+          })));
         }
       })
       .catch(() => {
@@ -684,7 +722,20 @@ export default function App() {
         setBalance(nextBalance);
         syncParentWallet(nextBalance);
       }
-      mergeTickets([...(data.payload.tickets || []), ...makeOtherPlayerTickets(String(data.payload.round.drawId))]);
+      mergeTickets([
+        ...(data.payload.tickets || []).map((ticket: Ticket, index: number) => ({
+          ...ticket,
+          isMine: ticket.isMine ?? true,
+          receivedAt: Date.now() + index,
+        })),
+        ...(data.payload.ticket ? [{
+          ...data.payload.ticket,
+          isMine: true,
+          receivedAt: Date.now() + 1000,
+        }] : []),
+      ].map((ticket: Ticket) => ({
+        ...ticket,
+      })));
       setCurrentDrawId(data.payload.round.drawId);
       setSelectedNumbers([]);
       setBetAcceptedFlash(true);

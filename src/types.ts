@@ -10,6 +10,7 @@ export interface Ticket {
   matchedCount?: number;
   matchedNumbers?: number[];
   isMine?: boolean;
+  receivedAt?: number;
 }
 
 export interface DrawResult {

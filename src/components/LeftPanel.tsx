@@ -18,6 +18,10 @@ type TabType = 'GAME' | 'HISTORY';
 type SubTabType = 'All' | 'My Tickets' | 'My Bets';
 
 const getTicketTimeKey = (ticket: Ticket) => {
+  if (Number.isFinite(ticket.receivedAt)) {
+    return Number(ticket.receivedAt);
+  }
+
   const timestamp = String(ticket.timestamp || '');
   const timeParts = timestamp.match(/(\d{1,2}):(\d{2}):(\d{2})/);
   if (timeParts) {
@@ -32,6 +36,8 @@ const getTicketTimeKey = (ticket: Ticket) => {
 const newestTicketFirst = (a: Ticket, b: Ticket) => {
   const timeDiff = getTicketTimeKey(b) - getTicketTimeKey(a);
   if (timeDiff !== 0) return timeDiff;
+  const betDiff = Number(b.betAmount || 0) - Number(a.betAmount || 0);
+  if (betDiff !== 0) return betDiff;
   return String(b.id || '').localeCompare(String(a.id || ''));
 };
 
