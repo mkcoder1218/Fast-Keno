@@ -105,10 +105,6 @@ export default function App() {
     return Date.now() + WAIT_SECONDS * 1000;
   };
 
-  const getSecondsUntil = (targetMs: number) => {
-    return Math.max(0, Math.ceil((targetMs - Date.now()) / 1000));
-  };
-
   // Gameplay States
   const [balance, setBalance] = useState<number>(Number.isFinite(launchBalance) ? launchBalance : 90.37);
   const [userId] = useState<string>(launchUserId);
@@ -116,6 +112,23 @@ export default function App() {
   const [drawResults, setDrawResults] = useState<DrawResult[]>(INITIAL_DRAWS);
   const [leaders, setLeaders] = useState<Leader[]>(INITIAL_LEADERS);
   const [payTable, setPayTable] = useState<PayTable>(DEFAULT_PAY_TABLE);
+  const [serverTimeOffsetMs, setServerTimeOffsetMs] = useState<number>(0);
+  const serverTimeOffsetRef = useRef<number>(0);
+
+  const getServerNowMs = () => Date.now() + serverTimeOffsetRef.current;
+
+  const getSecondsUntil = (targetMs: number) => {
+    return Math.max(0, Math.ceil((targetMs - getServerNowMs()) / 1000));
+  };
+
+  const syncServerTime = (value: unknown) => {
+    const serverMs = typeof value === 'number' ? value : new Date(String(value || '')).getTime();
+    if (Number.isFinite(serverMs)) {
+      const nextOffset = serverMs - Date.now();
+      serverTimeOffsetRef.current = nextOffset;
+      setServerTimeOffsetMs(nextOffset);
+    }
+  };
   
   // Selection States
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
@@ -304,6 +317,7 @@ export default function App() {
       .then((data) => {
         if (!mounted || !data?.ok) return;
         const payload = data.payload;
+        syncServerTime(payload.serverTime);
         if (payload.balance !== null && payload.balance !== undefined) {
           setBalance(payload.balance);
           syncParentWallet(Number(payload.balance));
@@ -382,6 +396,7 @@ export default function App() {
           }
 
           const payload = message.payload || message.data || message;
+          syncServerTime(payload.serverTime || payload.now || payload.timestamp);
           const rawTickets = Array.isArray(payload.tickets)
             ? payload.tickets
             : Array.isArray(payload.bets)
@@ -416,7 +431,7 @@ export default function App() {
             setCountdown(getSecondsUntil(nextRoundClosesAtMs));
           }
           if (round?.secondsRemaining !== undefined) {
-            const fallbackCloseMs = Date.now() + Math.max(0, Number(round.secondsRemaining || 0)) * 1000;
+            const fallbackCloseMs = getServerNowMs() + Math.max(0, Number(round.secondsRemaining || 0)) * 1000;
             setRoundClosesAtMs(fallbackCloseMs);
             setCountdown(getSecondsUntil(fallbackCloseMs));
           }
@@ -475,7 +490,7 @@ export default function App() {
 
     setCountdown(getSecondsUntil(roundClosesAtMs));
     return () => clearInterval(timer);
-  }, [isDrawing, currentDrawId, roundClosesAtMs]);
+  }, [isDrawing, currentDrawId, roundClosesAtMs, serverTimeOffsetMs]);
 
   // Performs 20 numbers drawing sequentially
   const triggerLiveDrawing = async (drawIdToPlay = currentDrawIdRef.current) => {
@@ -512,6 +527,7 @@ export default function App() {
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.message || 'Draw failed');
 
+      syncServerTime(data.payload?.serverTime);
       settledRoundRef.current = data.payload;
       const payloadDrawId = data.payload?.draw?.drawId ? String(data.payload.draw.drawId) : roundDrawId;
       if (payloadDrawId === roundDrawId && Array.isArray(data.payload?.draw?.combination)) {
@@ -661,6 +677,7 @@ export default function App() {
       .then((res) => res.json())
       .then((data) => {
         if (!data?.ok) return;
+        syncServerTime(data.payload?.serverTime);
         if (data.payload?.round?.drawId) {
           const serverDrawId = String(data.payload.round.drawId);
           const serverRoundClosesAtMs = getRoundCloseMs(data.payload.round, serverDrawId);
@@ -794,6 +811,7 @@ export default function App() {
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.message || 'Bet failed');
 
+      syncServerTime(data.payload?.serverTime);
       const nextBalance = Number(data.payload.balance);
       if (Number.isFinite(nextBalance)) {
         setBalance(nextBalance);

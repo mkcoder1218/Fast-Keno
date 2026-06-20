@@ -23,6 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         payload: {
+          serverTime: new Date().toISOString(),
           draw: latestDraw ? mapBackendDraw(latestDraw) : null,
           totalWinnings: 0,
           balance: Number(settledResult.balance || 0),

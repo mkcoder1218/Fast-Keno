@@ -202,6 +202,7 @@ export const fastKenoService = {
     syncBalance(state, userId, seededBalance);
 
     return {
+      serverTime: new Date().toISOString(),
       round: getRound(),
       balance: money(state.balances[userId]),
       tickets: publicTickets(state, userId),
@@ -242,6 +243,7 @@ export const fastKenoService = {
     writeState(state);
 
     return {
+      serverTime: new Date().toISOString(),
       round,
       ticket,
       balance: money(state.balances[userId]),
@@ -296,6 +298,7 @@ export const fastKenoService = {
     writeState(state);
 
     return {
+      serverTime: new Date().toISOString(),
       draw,
       totalWinnings,
       balance: money(state.balances[userId]),

@@ -23,6 +23,7 @@ export async function POST(request: Request) {
         {
           ok: true,
           payload: {
+            serverTime: new Date().toISOString(),
             round: mapBackendRound(result.round),
             ticket: mapBackendTicket(result.ticket),
             balance: Number(result.balance || 0),
