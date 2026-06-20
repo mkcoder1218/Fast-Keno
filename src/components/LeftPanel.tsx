@@ -48,8 +48,12 @@ export default function LeftPanel({
   // Active placed tickets (from state)
   const activePlacedTickets = tickets.filter(t => t.status === 'Waiting');
   const pastPlacedTickets = tickets.filter(t => t.status !== 'Waiting');
+  const myActiveTickets = activePlacedTickets.filter((t) => t.isMine !== false);
+  const myPastTickets = pastPlacedTickets.filter((t) => t.isMine !== false);
   const wonTickets = pastPlacedTickets.filter((t) => t.status === 'Won');
   const activeDrawnNumberSet = new Set(activeDrawnNumbers);
+  const activeDisplayTickets = activeSubTab === 'All' ? activePlacedTickets : myActiveTickets;
+  const pastDisplayTickets = activeSubTab === 'All' ? pastPlacedTickets : myPastTickets;
 
   return (
     <div className="flex flex-col h-full bg-[#11191a] border border-[#1e2a2c] p-2 text-zinc-100 uppercase select-none rounded-md" id="left-panel">
@@ -158,7 +162,7 @@ export default function LeftPanel({
           >
             <span>My Tickets</span>
             <span className="text-[#39d98a]/80 font-bold font-mono">
-              {activeTab === 'GAME' ? activePlacedTickets.length : pastPlacedTickets.length}
+              {activeTab === 'GAME' ? myActiveTickets.length : myPastTickets.length}
             </span>
           </button>
 
@@ -170,7 +174,7 @@ export default function LeftPanel({
           >
             <span>My Bets</span>
             <span className="text-[#39d98a]/80 font-bold font-mono">
-              {activeTab === 'GAME' ? activePlacedTickets.length : pastPlacedTickets.length}
+              {activeTab === 'GAME' ? myActiveTickets.length : myPastTickets.length}
             </span>
           </button>
         </div>
@@ -189,7 +193,7 @@ export default function LeftPanel({
       {/* Scroller Area of compact tickets */}
       <div className="flex-1 overflow-y-auto space-y-1 pr-1.5 visible-thin-scrollbar-left" id="tickets-list">
         {activeTab === 'GAME' ? (
-          (activeSubTab === 'All' ? activePlacedTickets : activePlacedTickets).map((ticket, idx) => {
+          activeDisplayTickets.map((ticket, idx) => {
             const displayMask = ticket.isMine === false ? String(ticket.userId || `USER***${ticket.id.slice(-3)}`) : `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
             const greenNums = ticket.isMine === false
@@ -197,7 +201,10 @@ export default function LeftPanel({
               : nums.filter((num) => activeDrawnNumberSet.has(num));
             const betText = `Bet ${ticket.betAmount}`;
             const isPlacing = placingTicketIds.includes(ticket.id);
-            const myTicketLabel = ticket.isMine === false ? displayMask : `${Math.max(1, activePlacedTickets.length - idx)} My Ticket`;
+            const myTicketLabel = ticket.isMine === false ? displayMask : `${Math.max(1, myActiveTickets.length - idx)} My Ticket`;
+            const ticketOwnerLabel = ticket.isMine === false || activeSubTab === 'All'
+              ? displayMask
+              : myTicketLabel;
 
             return (
               <div
@@ -216,7 +223,7 @@ export default function LeftPanel({
                 )}
                 {/* Compact Row 1: Username mask */}
                 <div className={`text-[10px] font-extrabold tracking-wide font-mono mb-1 ${isPlacing ? 'text-[#7ff0a6]' : 'text-[#39d98a]'}`}>
-                  {ticket.isMine === false || isPlacing ? myTicketLabel : displayMask}
+                  {isPlacing ? myTicketLabel : ticketOwnerLabel}
                 </div>
 
                 {/* Compact Row 2: Selected numbers in small cubes (22px x 20px) */}
@@ -263,7 +270,7 @@ export default function LeftPanel({
             );
           })
         ) : (
-          (activeSubTab === 'All' ? pastPlacedTickets : pastPlacedTickets).map((ticket, idx) => {
+          pastDisplayTickets.map((ticket, idx) => {
             const displayMask = ticket.isMine === false ? String(ticket.userId || `USER***${ticket.id.slice(-3)}`) : `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
             const isWon = ticket.status === 'Won';

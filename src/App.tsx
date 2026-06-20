@@ -30,6 +30,49 @@ import {
   playDeselectSound
 } from './audio';
 
+function getFastKenoSocketUrl(backendApiBase?: string, explicitSocketUrl?: string) {
+  const rawSocketUrl = explicitSocketUrl || process.env.NEXT_PUBLIC_FAST_KENO_SOCKET_URL || '';
+  if (rawSocketUrl.trim()) {
+    return rawSocketUrl.trim();
+  }
+
+  const rawApiBase = backendApiBase || process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL || 'https://api.king5.bet/api';
+  try {
+    const url = new URL(rawApiBase);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.pathname = url.pathname.replace(/\/api\/?$/i, '');
+    url.pathname = `${url.pathname.replace(/\/+$/, '')}/api/games/fast-keno/socket`;
+    url.search = '';
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
+function normalizeSocketTicket(raw: any): Ticket | null {
+  if (!raw) return null;
+  const selectedNumbers = Array.isArray(raw.selectedNumbers) ? raw.selectedNumbers.map(Number) : [];
+  const id = raw.id || raw.ticketNumber;
+  if (!id || selectedNumbers.length === 0) return null;
+
+  const status = String(raw.status || 'Waiting').toLowerCase();
+  return {
+    id: String(id),
+    userId: raw.userId ? String(raw.userId) : undefined,
+    selectedNumbers,
+    betAmount: Number(raw.betAmount ?? raw.stake ?? 0),
+    timestamp: raw.timestamp || raw.createdAt
+      ? new Date(raw.timestamp || raw.createdAt).toLocaleTimeString('en-US', { hour12: false })
+      : new Date().toLocaleTimeString('en-US', { hour12: false }),
+    status: status === 'won' ? 'Won' : status === 'lost' || status === 'missed' ? 'Missed' : 'Waiting',
+    winAmount: Number(raw.winAmount ?? raw.payout ?? 0),
+    drawId: String(raw.drawId || raw.roundId || raw.roundNumber || ''),
+    matchedCount: raw.matchedCount ?? raw.hits,
+    matchedNumbers: Array.isArray(raw.matchedNumbers) ? raw.matchedNumbers.map(Number) : [],
+    isMine: raw.isMine,
+  };
+}
+
 export default function App() {
   const DRAW_COUNT = 20;
   const DRAW_SECONDS = 60;
@@ -38,6 +81,7 @@ export default function App() {
   const launchBalance = Number(launchParams?.get('balance') || 90.37);
   const launchAuthToken = launchParams?.get('authToken') || '';
   const launchBackendApiBase = launchParams?.get('backendApiBase') || '';
+  const launchSocketUrl = launchParams?.get('fastKenoSocketUrl') || launchParams?.get('socketUrl') || '';
   const isEmbeddedInKing5 = launchParams?.get('embedded') === 'king5';
   const shortUserId = launchUserId.length > 8 ? launchUserId.slice(-8) : launchUserId;
 
@@ -195,6 +239,99 @@ export default function App() {
       mounted = false;
     };
   }, [userId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const socketUrl = getFastKenoSocketUrl(launchBackendApiBase, launchSocketUrl);
+    if (!socketUrl) return;
+
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
+    let closedByCleanup = false;
+
+    const connect = () => {
+      try {
+        const url = new URL(socketUrl);
+        url.searchParams.set('userId', userId);
+        if (launchAuthToken) {
+          url.searchParams.set('authToken', launchAuthToken);
+        }
+
+        socket = new WebSocket(url.toString());
+
+        socket.addEventListener('open', () => {
+          socket?.send(JSON.stringify({
+            type: 'subscribe',
+            game: 'fast-keno',
+            userId,
+            authToken: launchAuthToken || undefined,
+          }));
+        });
+
+        socket.addEventListener('message', (event) => {
+          let message: any;
+          try {
+            message = JSON.parse(String(event.data));
+          } catch {
+            return;
+          }
+
+          const payload = message.payload || message.data || message;
+          const rawTickets = Array.isArray(payload.tickets)
+            ? payload.tickets
+            : Array.isArray(payload)
+            ? payload
+            : payload.ticket
+            ? [payload.ticket]
+            : [];
+          const nextTickets = rawTickets
+            .map(normalizeSocketTicket)
+            .filter((ticket): ticket is Ticket => Boolean(ticket))
+            .map((ticket) => ({
+              ...ticket,
+              isMine: ticket.isMine ?? (ticket.userId ? String(ticket.userId) === userId : undefined),
+            }));
+
+          if (nextTickets.length) {
+            mergeTickets(nextTickets);
+          }
+
+          const round = payload.round || payload.currentRound;
+          if (round?.drawId || round?.roundNumber || round?.id) {
+            setCurrentDrawId(String(round.drawId || round.roundNumber || round.id));
+          }
+          if (round?.secondsRemaining !== undefined) {
+            setCountdown(Math.max(1, Math.min(DRAW_SECONDS, Number(round.secondsRemaining || DRAW_SECONDS))));
+          }
+          if (payload.balance !== undefined && payload.balance !== null) {
+            const nextBalance = Number(payload.balance);
+            if (Number.isFinite(nextBalance)) {
+              setBalance(nextBalance);
+              syncParentWallet(nextBalance);
+            }
+          }
+        });
+
+        socket.addEventListener('close', () => {
+          if (closedByCleanup) return;
+          reconnectTimer = window.setTimeout(connect, 2500);
+        });
+      } catch {
+        reconnectTimer = window.setTimeout(connect, 2500);
+      }
+    };
+
+    connect();
+
+    return () => {
+      closedByCleanup = true;
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer);
+      }
+      socket?.close();
+    };
+  }, [userId, launchAuthToken, launchBackendApiBase, launchSocketUrl]);
 
   // Countdown timer ticking trigger
   useEffect(() => {
