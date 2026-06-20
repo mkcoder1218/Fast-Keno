@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 export type TicketStatus = 'Waiting' | 'Won' | 'Missed';
@@ -31,10 +32,11 @@ interface FastKenoState {
   draws: FastKenoDraw[];
 }
 
-const DATA_DIR = path.join(process.cwd(), '.data');
+const DATA_DIR = process.env.FAST_KENO_DATA_DIR || path.join(os.tmpdir(), 'fast-keno');
 const DATA_FILE = path.join(DATA_DIR, 'fast-keno.json');
 const DEFAULT_BALANCE = 10000;
 const DRAW_SECONDS = 60;
+let memoryState: FastKenoState | null = null;
 
 const ENCRYPTED_PAY_TABLE = {
   iv: 'MjAyNDA2MTZmYXN0a2Vu',
@@ -44,27 +46,43 @@ const ENCRYPTED_PAY_TABLE = {
 };
 
 function getPayTable() {
-  const keySeed = process.env.FAST_KENO_PAYTABLE_KEY || 'fast-keno-paytable-v1';
-  const key = crypto.createHash('sha256').update(keySeed).digest();
-  const decipher = crypto.createDecipheriv(
-    'aes-256-gcm',
-    key,
-    Buffer.from(ENCRYPTED_PAY_TABLE.iv, 'base64')
-  );
+  const defaultKeySeed = 'fast-keno-paytable-v1';
+  const keySeeds = [process.env.FAST_KENO_PAYTABLE_KEY, defaultKeySeed]
+    .filter((value): value is string => Boolean(value))
+    .filter((value, index, values) => values.indexOf(value) === index);
 
-  decipher.setAuthTag(Buffer.from(ENCRYPTED_PAY_TABLE.tag, 'base64'));
+  for (const keySeed of keySeeds) {
+    try {
+      const key = crypto.createHash('sha256').update(keySeed).digest();
+      const decipher = crypto.createDecipheriv(
+        'aes-256-gcm',
+        key,
+        Buffer.from(ENCRYPTED_PAY_TABLE.iv, 'base64')
+      );
 
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(ENCRYPTED_PAY_TABLE.content, 'base64')),
-    decipher.final(),
-  ]).toString('utf8');
+      decipher.setAuthTag(Buffer.from(ENCRYPTED_PAY_TABLE.tag, 'base64'));
 
-  return JSON.parse(decrypted) as Record<number, Record<number, number>>;
+      const decrypted = Buffer.concat([
+        decipher.update(Buffer.from(ENCRYPTED_PAY_TABLE.content, 'base64')),
+        decipher.final(),
+      ]).toString('utf8');
+
+      return JSON.parse(decrypted) as Record<number, Record<number, number>>;
+    } catch {
+      // Try the built-in key if production has a stale or mismatched override.
+    }
+  }
+
+  throw new Error('Fast Keno pay table could not be loaded.');
 }
 
 const PAY_TABLE = getPayTable();
 
 function readState(): FastKenoState {
+  if (memoryState) {
+    return memoryState;
+  }
+
   if (!fs.existsSync(DATA_FILE)) {
     return { balances: {}, tickets: [], draws: [] };
   }
@@ -77,8 +95,14 @@ function readState(): FastKenoState {
 }
 
 function writeState(state: FastKenoState) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(DATA_FILE, JSON.stringify(state, null, 2));
+  memoryState = state;
+
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(DATA_FILE, JSON.stringify(state, null, 2));
+  } catch {
+    // Some production runtimes only allow ephemeral or no filesystem writes.
+  }
 }
 
 function money(value: number) {

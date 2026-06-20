@@ -16,6 +16,7 @@ interface MiddlePanelProps {
   betAcceptedFlash?: boolean;
   activeDrawnNumbers: number[];
   highlightNumbers?: number[];
+  onVisibleDrawnNumbersChange?: (numbers: number[]) => void;
   onDrawAnimationComplete?: () => void;
   hotNumbersList: number[];
   coldNumbersList: number[];
@@ -37,6 +38,7 @@ export default function MiddlePanel({
   betAcceptedFlash = false,
   activeDrawnNumbers,
   highlightNumbers = selectedNumbers,
+  onVisibleDrawnNumbersChange,
   onDrawAnimationComplete,
   countdown,
   payTable,
@@ -69,6 +71,7 @@ export default function MiddlePanel({
     setSettledBalls((prev) => {
       const next = typeof newBalls === 'function' ? newBalls(prev) : newBalls;
       settledBallsRef.current = next;
+      onVisibleDrawnNumbersChange?.(next);
       return next;
     });
   };

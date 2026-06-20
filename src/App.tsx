@@ -82,17 +82,18 @@ export default function App() {
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [isPlacingBet, setIsPlacingBet] = useState<boolean>(false);
   const [activeDrawnNumbers, setActiveDrawnNumbers] = useState<number[]>([]);
+  const [visibleDrawnNumbers, setVisibleDrawnNumbers] = useState<number[]>([]);
   const [currentDrawId, setCurrentDrawId] = useState<string>('8024922');
   const activeTicketHighlightNumbers = useMemo(
     () => Array.from(new Set([
       ...selectedNumbers,
       ...tickets
-        .filter((ticket) => ticket.status === 'Waiting')
+        .filter((ticket) => ticket.isMine !== false && ticket.status === 'Waiting')
         .flatMap((ticket) => ticket.selectedNumbers),
     ])),
     [selectedNumbers, tickets]
   );
-  const ticketDrawHighlights = isDrawing ? activeDrawnNumbers : [];
+  const ticketDrawHighlights = isDrawing ? visibleDrawnNumbers : [];
 
   // Timer Ref to manage draw interval
   const ballTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -224,6 +225,7 @@ export default function App() {
     }
     setIsDrawing(true);
     setActiveDrawnNumbers([]);
+    setVisibleDrawnNumbers([]);
     
     let fullCombination = generateRandomCombination(20, 1, 80);
     settledRoundRef.current = null;
@@ -356,6 +358,7 @@ export default function App() {
     updateStatistics(combination);
     simulateLeaderboardActivity(combination);
     setActiveDrawnNumbers([]);
+    setVisibleDrawnNumbers([]);
 
     const nextRoundParams = new URLSearchParams({ userId });
     if (launchAuthToken) {
@@ -658,6 +661,7 @@ export default function App() {
                 betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
                 highlightNumbers={activeTicketHighlightNumbers}
+                onVisibleDrawnNumbersChange={setVisibleDrawnNumbers}
                 onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}
                 coldNumbersList={coldNumbers.map((cn) => cn.num)}
@@ -701,6 +705,7 @@ export default function App() {
                 betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
                 highlightNumbers={activeTicketHighlightNumbers}
+                onVisibleDrawnNumbersChange={setVisibleDrawnNumbers}
                 onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}
                 coldNumbersList={coldNumbers.map((cn) => cn.num)}

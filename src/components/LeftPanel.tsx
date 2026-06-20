@@ -192,7 +192,9 @@ export default function LeftPanel({
           (activeSubTab === 'All' ? activePlacedTickets : activePlacedTickets).map((ticket, idx) => {
             const displayMask = ticket.isMine === false ? String(ticket.userId || `USER***${ticket.id.slice(-3)}`) : `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
-            const greenNums = nums.filter((num) => activeDrawnNumberSet.has(num));
+            const greenNums = ticket.isMine === false
+              ? []
+              : nums.filter((num) => activeDrawnNumberSet.has(num));
             const betText = `Bet ${ticket.betAmount}`;
             const isPlacing = placingTicketIds.includes(ticket.id);
             const myTicketLabel = ticket.isMine === false ? displayMask : `${Math.max(1, activePlacedTickets.length - idx)} My Ticket`;
@@ -268,7 +270,9 @@ export default function LeftPanel({
             const payoutText = ((ticket as any).winAmount || 0).toLocaleString('en-US');
             const wonIndex = isWon ? wonTickets.findIndex((t) => t.id === ticket.id) : -1;
             const wonTicketLabel = ticket.isMine === false ? displayMask : wonIndex >= 0 ? `${Math.max(1, wonTickets.length - wonIndex)} My Ticket` : displayMask;
-            const matchedNumberSet = new Set(ticket.matchedNumbers || []);
+            const matchedNumberSet = ticket.isMine === false
+              ? new Set<number>()
+              : new Set(ticket.matchedNumbers || []);
 
             return (
               <div
