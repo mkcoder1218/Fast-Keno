@@ -17,6 +17,24 @@ interface LeftPanelProps {
 type TabType = 'GAME' | 'HISTORY';
 type SubTabType = 'All' | 'My Tickets' | 'My Bets';
 
+const getTicketTimeKey = (ticket: Ticket) => {
+  const timestamp = String(ticket.timestamp || '');
+  const timeParts = timestamp.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+  if (timeParts) {
+    const [, hours, minutes, seconds] = timeParts;
+    return Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
+  }
+
+  const idTime = String(ticket.id || '').match(/(\d{10,})/);
+  return idTime ? Number(idTime[1]) : 0;
+};
+
+const newestTicketFirst = (a: Ticket, b: Ticket) => {
+  const timeDiff = getTicketTimeKey(b) - getTicketTimeKey(a);
+  if (timeDiff !== 0) return timeDiff;
+  return String(b.id || '').localeCompare(String(a.id || ''));
+};
+
 const ShieldCheckTiny = () => (
   <svg viewBox="0 0 24 24" fill="none" className="w-[12px] h-[12px] text-[#39d98a] shrink-0" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -52,8 +70,12 @@ export default function LeftPanel({
   const myPastTickets = pastPlacedTickets.filter((t) => t.isMine !== false);
   const wonTickets = pastPlacedTickets.filter((t) => t.status === 'Won');
   const activeDrawnNumberSet = new Set(activeDrawnNumbers);
-  const activeDisplayTickets = activeSubTab === 'All' ? activePlacedTickets : myActiveTickets;
-  const pastDisplayTickets = activeSubTab === 'All' ? pastPlacedTickets : myPastTickets;
+  const activeDisplayTickets = activeSubTab === 'All'
+    ? [...activePlacedTickets].sort(newestTicketFirst)
+    : myActiveTickets;
+  const pastDisplayTickets = activeSubTab === 'All'
+    ? [...pastPlacedTickets].sort(newestTicketFirst)
+    : myPastTickets;
 
   return (
     <div className="flex flex-col h-full bg-[#11191a] border border-[#1e2a2c] p-2 text-zinc-100 uppercase select-none rounded-md" id="left-panel">
