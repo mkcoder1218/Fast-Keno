@@ -512,13 +512,13 @@ export default function MiddlePanel({
         /* ==================== NORMAL BETTING MODE PANEL ==================== */
         <>
           {/* Top Header Row carrying Logo, Timer and Burger Menu */}
-          <div className="relative w-full h-[26px] md:h-[61px] shrink-0" id="middle-logo-header">
+          <div className="relative w-full h-[58px] md:h-[72px] shrink-0" id="middle-logo-header">
             <img
               src="/logo.png"
               alt="Fast Keno"
               className="absolute left-1/2 -translate-x-1/2 select-none pointer-events-none"
               style={{
-                top: typeof window !== 'undefined' && window.innerWidth < 768 ? '-2px' : '5px',
+                top: typeof window !== 'undefined' && window.innerWidth < 768 ? '4px' : '6px',
                 width: typeof window !== 'undefined' && window.innerWidth < 768 ? '116px' : '156px',
                 height: 'auto',
                 filter: 'drop-shadow(0 1.5px 2px rgba(0,0,0,0.85)) drop-shadow(0 0 3px rgba(66,200,120,0.3))',
@@ -526,7 +526,7 @@ export default function MiddlePanel({
             />
 
             {/* Digital Timer Clock with cyan outer shadow glow */}
-            <div className="absolute left-1/2 -translate-x-1/2 top-[22px] md:top-[34px] text-center flex items-center justify-center select-none w-[120px] h-[28px]">
+            <div className="absolute left-1/2 -translate-x-1/2 top-[30px] md:top-[39px] text-center flex items-center justify-center select-none w-[132px] h-[30px] overflow-visible">
               {/* Soft background glow horizontal flare */}
               <div 
                 className="absolute inset-0 bg-[#7ff7ff]/18 blur-[11px] rounded-full scale-y-[0.42]" 
