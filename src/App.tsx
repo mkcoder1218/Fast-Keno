@@ -85,6 +85,26 @@ export default function App() {
   const launchSocketUrl = launchParams?.get('fastKenoSocketUrl') || launchParams?.get('socketUrl') || '';
   const isEmbeddedInKing5 = launchParams?.get('embedded') === 'king5';
   const shortUserId = launchUserId.length > 8 ? launchUserId.slice(-8) : launchUserId;
+  const initialDrawId = String(Math.floor(Date.now() / (DRAW_SECONDS * 1000)));
+
+  const getRoundCloseMs = (round?: any, fallbackDrawId?: string) => {
+    const closesAtMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
+    if (Number.isFinite(closesAtMs)) {
+      return closesAtMs;
+    }
+
+    const drawId = String(round?.drawId || round?.roundNumber || round?.id || fallbackDrawId || initialDrawId);
+    const numericDrawId = Number(drawId);
+    if (Number.isFinite(numericDrawId)) {
+      return (numericDrawId + 1) * DRAW_SECONDS * 1000;
+    }
+
+    return Date.now() + DRAW_SECONDS * 1000;
+  };
+
+  const getSecondsUntil = (targetMs: number) => {
+    return Math.max(0, Math.ceil((targetMs - Date.now()) / 1000));
+  };
 
   // Gameplay States
   const [balance, setBalance] = useState<number>(Number.isFinite(launchBalance) ? launchBalance : 90.37);
@@ -124,12 +144,13 @@ export default function App() {
   const [coldNumbers, setColdNumbers] = useState<HotColdNumber[]>(COLD_NUMBERS);
 
   // Timer & Ball Extraction State
-  const [countdown, setCountdown] = useState<number>(DRAW_SECONDS);
+  const [roundClosesAtMs, setRoundClosesAtMs] = useState<number>(() => getRoundCloseMs(undefined, initialDrawId));
+  const [countdown, setCountdown] = useState<number>(() => getSecondsUntil(getRoundCloseMs(undefined, initialDrawId)));
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [isPlacingBet, setIsPlacingBet] = useState<boolean>(false);
   const [activeDrawnNumbers, setActiveDrawnNumbers] = useState<number[]>([]);
   const [visibleDrawnNumbers, setVisibleDrawnNumbers] = useState<number[]>([]);
-  const [currentDrawId, setCurrentDrawId] = useState<string>('8024922');
+  const [currentDrawId, setCurrentDrawId] = useState<string>(initialDrawId);
   const activeTicketHighlightNumbers = useMemo(
     () => Array.from(new Set([
       ...selectedNumbers,
@@ -288,7 +309,9 @@ export default function App() {
           setPayTable(payload.payTable);
         }
         setCurrentDrawId(payload.round.drawId);
-        setCountdown(Math.max(1, Math.min(DRAW_SECONDS, Number(payload.round.secondsRemaining || DRAW_SECONDS))));
+        const nextRoundClosesAtMs = getRoundCloseMs(payload.round, payload.round.drawId);
+        setRoundClosesAtMs(nextRoundClosesAtMs);
+        setCountdown(getSecondsUntil(nextRoundClosesAtMs));
       })
       .catch(() => {
         triggerToast('Local Fast Keno service is not reachable yet.', 'error');
@@ -371,10 +394,16 @@ export default function App() {
 
           const round = payload.round || payload.currentRound;
           if (round?.drawId || round?.roundNumber || round?.id) {
-            setCurrentDrawId(String(round.drawId || round.roundNumber || round.id));
+            const nextDrawId = String(round.drawId || round.roundNumber || round.id);
+            setCurrentDrawId(nextDrawId);
+            const nextRoundClosesAtMs = getRoundCloseMs(round, nextDrawId);
+            setRoundClosesAtMs(nextRoundClosesAtMs);
+            setCountdown(getSecondsUntil(nextRoundClosesAtMs));
           }
           if (round?.secondsRemaining !== undefined) {
-            setCountdown(Math.max(1, Math.min(DRAW_SECONDS, Number(round.secondsRemaining || DRAW_SECONDS))));
+            const fallbackCloseMs = Date.now() + Math.max(0, Number(round.secondsRemaining || 0)) * 1000;
+            setRoundClosesAtMs(fallbackCloseMs);
+            setCountdown(getSecondsUntil(fallbackCloseMs));
           }
           if (payload.balance !== undefined && payload.balance !== null) {
             const nextBalance = Number(payload.balance);
@@ -415,21 +444,23 @@ export default function App() {
     if (isDrawing) return;
 
     const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          triggerLiveDrawing();
-          return 0;
-        }
-        if (prev <= 6) {
-          playTickSound();
-        }
-        return prev - 1;
-      });
+      const nextSeconds = getSecondsUntil(roundClosesAtMs);
+      setCountdown(nextSeconds);
+
+      if (nextSeconds <= 0) {
+        clearInterval(timer);
+        triggerLiveDrawing();
+        return;
+      }
+
+      if (nextSeconds <= 6) {
+        playTickSound();
+      }
     }, 1000);
 
+    setCountdown(getSecondsUntil(roundClosesAtMs));
     return () => clearInterval(timer);
-  }, [isDrawing, currentDrawId]);
+  }, [isDrawing, currentDrawId, roundClosesAtMs]);
 
   // Performs 20 numbers drawing sequentially
   const triggerLiveDrawing = async () => {
@@ -574,8 +605,10 @@ export default function App() {
     setActiveDrawnNumbers([]);
     setVisibleDrawnNumbers([]);
     const nextDrawId = String(Number(currentDrawId) + 1);
+    const nextRoundClosesAtMs = getRoundCloseMs(undefined, nextDrawId);
     setCurrentDrawId(nextDrawId);
-    setCountdown(DRAW_SECONDS);
+    setRoundClosesAtMs(nextRoundClosesAtMs);
+    setCountdown(getSecondsUntil(nextRoundClosesAtMs));
     ensureOtherPlayerTickets(nextDrawId, 5);
     setIsDrawing(false);
 
@@ -591,6 +624,13 @@ export default function App() {
       .then((res) => res.json())
       .then((data) => {
         if (!data?.ok) return;
+        if (data.payload?.round?.drawId) {
+          const serverDrawId = String(data.payload.round.drawId);
+          const serverRoundClosesAtMs = getRoundCloseMs(data.payload.round, serverDrawId);
+          setCurrentDrawId(serverDrawId);
+          setRoundClosesAtMs(serverRoundClosesAtMs);
+          setCountdown(getSecondsUntil(serverRoundClosesAtMs));
+        }
         if (Array.isArray(data.payload.tickets)) {
           mergeTickets(data.payload.tickets.map((ticket: Ticket, index: number) => ({
             ...ticket,
@@ -737,6 +777,9 @@ export default function App() {
         ...ticket,
       })));
       setCurrentDrawId(data.payload.round.drawId);
+      const betRoundClosesAtMs = getRoundCloseMs(data.payload.round, data.payload.round.drawId);
+      setRoundClosesAtMs(betRoundClosesAtMs);
+      setCountdown(getSecondsUntil(betRoundClosesAtMs));
       setSelectedNumbers([]);
       setBetAcceptedFlash(true);
       window.setTimeout(() => {
