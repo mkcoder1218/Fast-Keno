@@ -177,7 +177,7 @@ export default function MiddlePanel({
     if (queueChanged) {
       processQueue();
     }
-  }, [activeDrawnNumbers, isDrawing]);
+  }, [activeDrawnNumbers, initialSettledNumbers, isDrawing]);
 
   const handleAdjustBet = (multiplier: number) => {
     playClickSound();

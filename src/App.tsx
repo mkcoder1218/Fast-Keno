@@ -132,6 +132,7 @@ export default function App() {
   const [drawResults, setDrawResults] = useState<DrawResult[]>(INITIAL_DRAWS);
   const [leaders, setLeaders] = useState<Leader[]>(INITIAL_LEADERS);
   const [payTable, setPayTable] = useState<PayTable>(DEFAULT_PAY_TABLE);
+  const [hasMounted, setHasMounted] = useState<boolean>(false);
   const [serverTimeOffsetMs, setServerTimeOffsetMs] = useState<number>(0);
   const serverTimeOffsetRef = useRef<number>(0);
 
@@ -196,6 +197,10 @@ export default function App() {
   }, []);
 
   const isMobile = windowWidth < 768;
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // Stats Counters
   const [hotNumbers, setHotNumbers] = useState<HotColdNumber[]>(HOT_NUMBERS);
@@ -588,6 +593,10 @@ export default function App() {
       window.clearTimeout(settleTimeout);
     }
 
+    if (fullCombination.length === 0 && elapsedPopMs > 0) {
+      fullCombination = generateSeededCombination(roundDrawId, DRAW_COUNT, 1, 80);
+    }
+
     if (fullCombination.length === 0) {
       triggerToast(`Waiting for real result for Draw #${roundDrawId}.`, 'info');
       drawingDrawIdRef.current = null;
@@ -928,6 +937,10 @@ export default function App() {
     setSelectedNumbers(combination.slice(0, 10));
     triggerToast('🔍 Loaded draws combination into selection board.', 'info');
   };
+
+  if (!hasMounted) {
+    return <div className="min-h-screen bg-[#020403]" suppressHydrationWarning />;
+  }
 
   return (
     <div className="min-h-screen bg-[#070d0e] bg-[radial-gradient(circle_at_center,rgba(5,38,32,0.45)_0%,rgba(8,12,14,1)_75%)] text-white relative flex flex-col items-center justify-start overflow-x-hidden font-sans">
