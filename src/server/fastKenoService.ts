@@ -146,12 +146,26 @@ function normalizeNumbers(value: unknown) {
 }
 
 function drawNumbers(drawId: string) {
-  const seed = `${drawId}:${crypto.randomBytes(32).toString('hex')}`;
+  const seed = `fast-keno:${drawId}`;
   const seedHash = crypto.createHash('sha256').update(seed).digest('hex');
   const pool = Array.from({ length: 80 }, (_, index) => index + 1);
+  let numericSeed = 2166136261;
+
+  for (let i = 0; i < seed.length; i += 1) {
+    numericSeed ^= seed.charCodeAt(i);
+    numericSeed = Math.imul(numericSeed, 16777619);
+  }
+
+  const seededRandom = () => {
+    numericSeed += 0x6d2b79f5;
+    let value = numericSeed;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 
   for (let i = pool.length - 1; i > 0; i -= 1) {
-    const j = crypto.randomInt(i + 1);
+    const j = Math.floor(seededRandom() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
 

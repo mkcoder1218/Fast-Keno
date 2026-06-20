@@ -17,6 +17,7 @@ import {
   HOT_NUMBERS, 
   COLD_NUMBERS,
   generateRandomCombination,
+  generateSeededCombination,
   DEFAULT_PAY_TABLE,
   getMultiplier
 } from './data';
@@ -472,7 +473,7 @@ export default function App() {
     setActiveDrawnNumbers([]);
     setVisibleDrawnNumbers([]);
     
-    let fullCombination = generateRandomCombination(20, 1, 80);
+    let fullCombination = generateSeededCombination(currentDrawId, DRAW_COUNT, 1, 80);
     settledRoundRef.current = null;
 
     const settleController = new AbortController();
