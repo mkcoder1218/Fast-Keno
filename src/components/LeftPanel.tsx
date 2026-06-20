@@ -201,8 +201,7 @@ export default function LeftPanel({
               : nums.filter((num) => activeDrawnNumberSet.has(num));
             const betText = `Bet ${ticket.betAmount}`;
             const isPlacing = placingTicketIds.includes(ticket.id);
-            const isOwnWaitingTicket = ticket.isMine !== false && ticket.status === 'Waiting';
-            const isGreenTicket = isPlacing || isOwnWaitingTicket;
+            const isGreenTicket = isPlacing;
             const myTicketLabel = ticket.isMine === false ? displayMask : `${Math.max(1, myActiveTickets.length - idx)} My Ticket`;
             const ticketOwnerLabel = ticket.isMine === false || activeSubTab === 'All'
               ? displayMask

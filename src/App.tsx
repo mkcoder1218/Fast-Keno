@@ -657,7 +657,7 @@ export default function App() {
         setPlacingTicketIds((prev) => [...prev.filter((id) => id !== nextTicketId), nextTicketId]);
         window.setTimeout(() => {
           setPlacingTicketIds((prev) => prev.filter((id) => id !== nextTicketId));
-        }, 1800);
+        }, 5000);
       }
       triggerToast(`Stake of ${betAmount} placed successfully for Draw #${data.payload.round.drawId}!`, 'success');
     } catch (error) {
