@@ -142,9 +142,20 @@ export default function App() {
     const secondsRemaining = Number(round.secondsRemaining);
     const startsAtMs = round?.startsAt ? new Date(round.startsAt).getTime() : NaN;
     const closesAtMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
+    const endsAtMs = round?.endsAt ? new Date(round.endsAt).getTime() : NaN;
     const serverNowMs = getServerNowMs();
     const startsInFuture = Number.isFinite(startsAtMs) && serverNowMs < startsAtMs;
     const drawIdToPlay = startsInFuture ? String(Number(nextDrawId) - 1) : nextDrawId;
+    const drawingEndsAtMs = startsInFuture && Number.isFinite(startsAtMs)
+      ? startsAtMs
+      : Number.isFinite(endsAtMs)
+        ? endsAtMs
+        : Number.isFinite(closesAtMs)
+          ? closesAtMs + POP_SECONDS * 1000
+          : NaN;
+    const drawingCountdownTargetMs = Number.isFinite(drawingEndsAtMs)
+      ? drawingEndsAtMs + WAIT_SECONDS * 1000
+      : undefined;
     const elapsedPopMsFromDates = startsInFuture && Number.isFinite(startsAtMs)
       ? serverNowMs - (startsAtMs - POP_SECONDS * 1000)
       : Number.isFinite(closesAtMs)
@@ -159,7 +170,7 @@ export default function App() {
         0,
         Math.min(POP_SECONDS * 1000, elapsedPopMsFromDates)
       );
-      void triggerLiveDrawing(drawIdToPlay, elapsedPopMs);
+      void triggerLiveDrawing(drawIdToPlay, elapsedPopMs, drawingCountdownTargetMs);
       return;
     }
 
@@ -565,7 +576,11 @@ export default function App() {
   }, [isDrawing, currentDrawId, roundClosesAtMs, serverTimeOffsetMs]);
 
   // Performs 20 numbers drawing sequentially
-  const triggerLiveDrawing = async (drawIdToPlay = currentDrawIdRef.current, elapsedPopMs = 0) => {
+  const triggerLiveDrawing = async (
+    drawIdToPlay = currentDrawIdRef.current,
+    elapsedPopMs = 0,
+    countdownTargetMs?: number
+  ) => {
     // If a drawing loop is already active, do NOT start another!
     if (ballTimerRef.current) {
       return;
@@ -586,7 +601,9 @@ export default function App() {
       WAIT_SECONDS,
       Math.min(ROUND_SECONDS, Math.ceil(ROUND_SECONDS - elapsedPopMs / 1000))
     );
-    const drawingCountdownTargetMs = getServerNowMs() + redZoneSecondsRemaining * 1000;
+    const drawingCountdownTargetMs = Number.isFinite(countdownTargetMs)
+      ? countdownTargetMs
+      : getServerNowMs() + redZoneSecondsRemaining * 1000;
     settledRoundRef.current = null;
     setRoundClosesAtMs(drawingCountdownTargetMs);
     setCountdown(redZoneSecondsRemaining);
