@@ -234,6 +234,12 @@ export default function MiddlePanel({
     const remainder = (secs % 60).toString().padStart(2, '0');
     return `${mins} : ${remainder}`;
   };
+  const timerIsOverMinute = countdown > 60;
+  const timerColor = timerIsOverMinute ? '#ff4b4b' : '#f6ffff';
+  const timerGlow = timerIsOverMinute
+    ? '0 0 2px rgba(255,255,255,0.85), 0 0 5px rgba(255,75,75,0.95), 0 0 14px rgba(239,68,68,0.7), 0 1px 0 rgba(0,0,0,0.95)'
+    : '0 0 2px rgba(255,255,255,0.95), 0 0 5px rgba(127,247,255,0.9), 0 0 12px rgba(34,211,238,0.52), 0 1px 0 rgba(0,0,0,0.95)';
+  const timerGlowColor = timerIsOverMinute ? '#ff4b4b' : '#7ff7ff';
 
   return (
     <div className="flex flex-col h-full text-zinc-100 select-none uppercase" id="middle-panel">
@@ -529,8 +535,8 @@ export default function MiddlePanel({
             <div className="absolute left-1/2 -translate-x-1/2 top-[30px] md:top-[39px] text-center flex items-center justify-center select-none w-[132px] h-[30px] overflow-visible">
               {/* Soft background glow horizontal flare */}
               <div 
-                className="absolute inset-0 bg-[#7ff7ff]/18 blur-[11px] rounded-full scale-y-[0.42]" 
-                style={{ mixBlendMode: 'screen' }}
+                className="absolute inset-0 blur-[11px] rounded-full scale-y-[0.42]"
+                style={{ mixBlendMode: 'screen', backgroundColor: `${timerGlowColor}2e` }}
               />
               <span 
                 className="tracking-[0.08em] relative z-10" 
@@ -538,9 +544,9 @@ export default function MiddlePanel({
                   fontFamily: '"DS Digital", "Orbitron", monospace',
                   fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '23px' : '25px',
                   fontWeight: 700,
-                  color: '#f6ffff',
+                  color: timerColor,
                   lineHeight: 1,
-                  textShadow: '0 0 2px rgba(255,255,255,0.95), 0 0 5px rgba(127,247,255,0.9), 0 0 12px rgba(34,211,238,0.52), 0 1px 0 rgba(0,0,0,0.95)',
+                  textShadow: timerGlow,
                 }}
               >
                 {formatTimer(countdown)}
