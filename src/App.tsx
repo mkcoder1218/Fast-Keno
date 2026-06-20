@@ -543,13 +543,11 @@ export default function App() {
 
   // Countdown timer ticking trigger
   useEffect(() => {
-    if (isDrawing) return;
-
     const timer = setInterval(() => {
       const nextSeconds = getSecondsUntil(roundClosesAtMs);
       setCountdown(nextSeconds);
 
-      if (nextSeconds <= 0) {
+      if (!isDrawing && nextSeconds <= 0) {
         clearInterval(timer);
         clientWaitDrawIdRef.current = null;
         clientWaitEndsAtRef.current = 0;
@@ -557,7 +555,7 @@ export default function App() {
         return;
       }
 
-      if (nextSeconds <= 6) {
+      if (!isDrawing && nextSeconds <= 6) {
         playTickSound();
       }
     }, 1000);
@@ -584,7 +582,14 @@ export default function App() {
     const perBallMs = (POP_SECONDS * 1000) / DRAW_COUNT;
     const settledCount = Math.max(0, Math.min(DRAW_COUNT - 1, Math.floor(elapsedPopMs / perBallMs)));
     const settledNumbers = fullCombination.slice(0, settledCount);
+    const redZoneSecondsRemaining = Math.max(
+      WAIT_SECONDS,
+      Math.min(ROUND_SECONDS, Math.ceil(ROUND_SECONDS - elapsedPopMs / 1000))
+    );
+    const drawingCountdownTargetMs = getServerNowMs() + redZoneSecondsRemaining * 1000;
     settledRoundRef.current = null;
+    setRoundClosesAtMs(drawingCountdownTargetMs);
+    setCountdown(redZoneSecondsRemaining);
     setInitialSettledNumbers(settledNumbers);
     setVisibleDrawnNumbers(settledNumbers);
     setActiveDrawnNumbers(fullCombination.slice(0, DRAW_COUNT));

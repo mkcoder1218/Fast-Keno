@@ -336,6 +336,27 @@ export default function MiddlePanel({
                 </h1>
               </div>
 
+              {/* Red-zone countdown stays visible while balls are popping */}
+              <div className="absolute left-1/2 -translate-x-1/2 top-[25px] md:top-[25px] text-center flex items-center justify-center select-none w-[132px] h-[30px] overflow-visible z-[55]">
+                <div
+                  className="absolute inset-0 blur-[11px] rounded-full scale-y-[0.42]"
+                  style={{ mixBlendMode: 'screen', backgroundColor: `${timerGlowColor}2e` }}
+                />
+                <span
+                  className="tracking-[0.08em] relative z-10"
+                  style={{
+                    fontFamily: '"DS Digital", "Orbitron", monospace',
+                    fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '23px' : '25px',
+                    fontWeight: 700,
+                    color: timerColor,
+                    lineHeight: 1,
+                    textShadow: timerGlow,
+                  }}
+                >
+                  {formatTimer(countdown)}
+                </span>
+              </div>
+
               {/* Hamburger button at top right (hidden on mobile) */}
               <button 
                 onClick={() => playClickSound()}
