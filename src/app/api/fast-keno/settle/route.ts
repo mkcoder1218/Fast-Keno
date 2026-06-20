@@ -15,7 +15,10 @@ export async function POST(request: Request) {
         backendRequest('/games/fast-keno/tickets?limit=50', authToken, {}, backendApiBase),
       ]);
       const settledRounds = settledResult.settled || [];
-      const latestDraw = settledRounds[settledRounds.length - 1];
+      const requestedDrawId = body?.drawId ? String(body.drawId) : '';
+      const latestDraw = requestedDrawId
+        ? settledRounds.find((round: any) => String(round?.roundNumber || round?.id || '') === requestedDrawId) || null
+        : settledRounds[settledRounds.length - 1];
 
       return NextResponse.json({
         ok: true,

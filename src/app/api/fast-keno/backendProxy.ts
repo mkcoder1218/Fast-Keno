@@ -1,33 +1,5 @@
 const DEFAULT_BACKEND_API_BASE = 'https://api.king5.bet/api';
 
-function createSeededRandom(seedText: string) {
-  let seed = 2166136261;
-  for (let i = 0; i < seedText.length; i += 1) {
-    seed ^= seedText.charCodeAt(i);
-    seed = Math.imul(seed, 16777619);
-  }
-
-  return () => {
-    seed += 0x6d2b79f5;
-    let value = seed;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function getDrawCombination(drawId: string) {
-  const random = createSeededRandom(`fast-keno:${drawId}`);
-  const pool = Array.from({ length: 80 }, (_, index) => index + 1);
-
-  for (let i = pool.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-
-  return pool.slice(0, 20).sort((a, b) => a - b);
-}
-
 export function getBackendApiBase(value?: string | null) {
   const raw = String(
     value ||
@@ -98,6 +70,6 @@ export function mapBackendDraw(round: any) {
     time: round?.settledAt
       ? new Date(round.settledAt).toLocaleTimeString('en-US', { hour12: false })
       : new Date().toLocaleTimeString('en-US', { hour12: false }),
-    combination: drawId ? getDrawCombination(drawId) : [],
+    combination: Array.isArray(round?.drawNumbers) ? round.drawNumbers.map(Number) : [],
   };
 }

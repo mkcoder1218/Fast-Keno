@@ -316,7 +316,7 @@ export default function App() {
         setDrawResults(payload.draws.length ? payload.draws.map((draw: any) => ({
           drawId: draw.drawId,
           time: draw.time,
-          combination: generateSeededCombination(String(draw.drawId), DRAW_COUNT, 1, 80),
+          combination: Array.isArray(draw.combination) ? draw.combination.map(Number) : [],
         })) : INITIAL_DRAWS);
         if (payload.payTable) {
           setPayTable(payload.payTable);
@@ -487,11 +487,13 @@ export default function App() {
     setActiveDrawnNumbers([]);
     setVisibleDrawnNumbers([]);
     
-    let fullCombination = generateSeededCombination(roundDrawId, DRAW_COUNT, 1, 80);
+    let fullCombination = launchAuthToken
+      ? []
+      : generateSeededCombination(roundDrawId, DRAW_COUNT, 1, 80);
     settledRoundRef.current = null;
 
     const settleController = new AbortController();
-    const settleTimeout = window.setTimeout(() => settleController.abort(), 1500);
+    const settleTimeout = window.setTimeout(() => settleController.abort(), launchAuthToken ? 8000 : 1500);
 
     try {
       const res = await fetch('/api/fast-keno/settle', {
@@ -510,7 +512,9 @@ export default function App() {
 
       settledRoundRef.current = data.payload;
       const payloadDrawId = data.payload?.draw?.drawId ? String(data.payload.draw.drawId) : roundDrawId;
-      if (payloadDrawId !== roundDrawId) {
+      if (payloadDrawId === roundDrawId && Array.isArray(data.payload?.draw?.combination)) {
+        fullCombination = data.payload.draw.combination.map(Number);
+      } else if (payloadDrawId !== roundDrawId) {
         settledRoundRef.current = null;
       }
     } catch (error) {
@@ -524,6 +528,14 @@ export default function App() {
     } finally {
       window.clearTimeout(settleTimeout);
     }
+
+    if (fullCombination.length === 0) {
+      triggerToast(`Waiting for real result for Draw #${roundDrawId}.`, 'info');
+      setDrawingDrawId(null);
+      setIsDrawing(false);
+      return;
+    }
+
     setActiveDrawnNumbers(fullCombination.slice(0, DRAW_COUNT));
   };
 
@@ -575,7 +587,7 @@ export default function App() {
       setDrawResults(serviceResult.draws.map((draw: any) => ({
         drawId: draw.drawId,
         time: draw.time,
-        combination: generateSeededCombination(String(draw.drawId), DRAW_COUNT, 1, 80),
+        combination: Array.isArray(draw.combination) ? draw.combination.map(Number) : [],
       })));
     } else {
       setTickets((prevTickets) => {
