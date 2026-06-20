@@ -223,6 +223,10 @@ export default function App() {
     ])),
     [selectedNumbers, tickets]
   );
+  const drawingHighlightNumbers = useMemo(
+    () => activeTicketHighlightNumbers,
+    [isDrawing ? '' : activeTicketHighlightNumbers.join(',')]
+  );
   const ticketDrawHighlights = isDrawing ? visibleDrawnNumbers : [];
   const displayedDrawId = drawingDrawId || currentDrawId;
 
@@ -899,7 +903,6 @@ export default function App() {
       ].map((ticket: Ticket) => ({
         ...ticket,
       })));
-      syncRoundPhase(data.payload.round);
       setSelectedNumbers([]);
       setBetAcceptedFlash(true);
       window.setTimeout(() => {
@@ -1059,7 +1062,7 @@ export default function App() {
                 betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
                 initialSettledNumbers={initialSettledNumbers}
-                highlightNumbers={activeTicketHighlightNumbers}
+                highlightNumbers={drawingHighlightNumbers}
                 onVisibleDrawnNumbersChange={setVisibleDrawnNumbers}
                 onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}
@@ -1104,7 +1107,7 @@ export default function App() {
                 betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
                 initialSettledNumbers={initialSettledNumbers}
-                highlightNumbers={activeTicketHighlightNumbers}
+                highlightNumbers={drawingHighlightNumbers}
                 onVisibleDrawnNumbersChange={setVisibleDrawnNumbers}
                 onDrawAnimationComplete={() => finalizeDrawRound(activeDrawnNumbers)}
                 hotNumbersList={hotNumbers.map((hn) => hn.num)}

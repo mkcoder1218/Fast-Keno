@@ -150,11 +150,6 @@ export default function MiddlePanel({
     }
 
     if (activeDrawnNumbers.length === 0) {
-      updateSettledBalls([]);
-      setCurrentBall(null);
-      setAnimationPhase('idle');
-      incomingQueueRef.current = [];
-      isProcessingRef.current = false;
       return;
     }
 
