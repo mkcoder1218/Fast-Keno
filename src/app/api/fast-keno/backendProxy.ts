@@ -47,8 +47,11 @@ export function mapBackendRound(round: any, serverTime?: unknown) {
   const endsAtMs = Number.isFinite(startsAtMs)
     ? startsAtMs + 90 * 1000
     : normalizedClosesAtMs + 30 * 1000;
-  const secondsRemaining = Number.isFinite(Number(round?.secondsRemaining))
-    ? Number(round.secondsRemaining)
+  const startsInFuture = Number.isFinite(startsAtMs) && resolvedNowMs < startsAtMs;
+  const isDrawing = startsInFuture ||
+    (Number.isFinite(normalizedClosesAtMs) && resolvedNowMs >= normalizedClosesAtMs && resolvedNowMs < endsAtMs);
+  const secondsRemaining = isDrawing
+    ? Math.max(60, Math.ceil((endsAtMs - resolvedNowMs) / 1000))
     : Math.max(0, Math.ceil((normalizedClosesAtMs - resolvedNowMs) / 1000));
 
   return {
@@ -57,7 +60,7 @@ export function mapBackendRound(round: any, serverTime?: unknown) {
     startsAt: round?.startsAt,
     closesAt: new Date(normalizedClosesAtMs).toISOString(),
     endsAt: round?.endsAt || new Date(endsAtMs).toISOString(),
-    phase: round?.phase,
+    phase: isDrawing ? 'drawing' : 'waiting',
     secondsRemaining: Math.max(0, Math.min(secondsRemaining, 90)),
   };
 }

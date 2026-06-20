@@ -140,18 +140,26 @@ export default function App() {
     if (!nextDrawId) return;
 
     const secondsRemaining = Number(round.secondsRemaining);
-    const previousDrawId = String(Number(nextDrawId) - 1);
+    const startsAtMs = round?.startsAt ? new Date(round.startsAt).getTime() : NaN;
+    const closesAtMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
+    const serverNowMs = getServerNowMs();
+    const startsInFuture = Number.isFinite(startsAtMs) && serverNowMs < startsAtMs;
+    const drawIdToPlay = startsInFuture ? String(Number(nextDrawId) - 1) : nextDrawId;
+    const elapsedPopMsFromDates = startsInFuture && Number.isFinite(startsAtMs)
+      ? serverNowMs - (startsAtMs - POP_SECONDS * 1000)
+      : Number.isFinite(closesAtMs)
+        ? serverNowMs - closesAtMs
+        : (ROUND_SECONDS - secondsRemaining) * 1000;
     if (
-      Number.isFinite(secondsRemaining) &&
-      secondsRemaining > WAIT_SECONDS &&
+      (round.phase === 'drawing' || (Number.isFinite(secondsRemaining) && secondsRemaining > WAIT_SECONDS)) &&
       !isDrawing &&
-      previousDrawId !== drawingDrawIdRef.current
+      drawIdToPlay !== drawingDrawIdRef.current
     ) {
       const elapsedPopMs = Math.max(
         0,
-        Math.min(POP_SECONDS * 1000, (ROUND_SECONDS - secondsRemaining) * 1000)
+        Math.min(POP_SECONDS * 1000, elapsedPopMsFromDates)
       );
-      void triggerLiveDrawing(previousDrawId, elapsedPopMs);
+      void triggerLiveDrawing(drawIdToPlay, elapsedPopMs);
       return;
     }
 
