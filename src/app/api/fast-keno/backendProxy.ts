@@ -34,7 +34,11 @@ export function getAuthToken(value: unknown) {
   return token || null;
 }
 
-export function mapBackendRound(round: any) {
+export function mapBackendRound(round: any, serverTime?: unknown) {
+  const nowMs = typeof serverTime === 'number'
+    ? serverTime
+    : new Date(String(serverTime || '')).getTime();
+  const resolvedNowMs = Number.isFinite(nowMs) ? nowMs : Date.now();
   const startsAtMs = round?.startsAt ? new Date(round.startsAt).getTime() : NaN;
   const closesAtMs = new Date(round?.closesAt || Date.now()).getTime();
   const normalizedClosesAtMs = Number.isFinite(startsAtMs)
@@ -43,7 +47,9 @@ export function mapBackendRound(round: any) {
   const endsAtMs = Number.isFinite(startsAtMs)
     ? startsAtMs + 90 * 1000
     : normalizedClosesAtMs + 30 * 1000;
-  const secondsRemaining = Math.max(0, Math.ceil((normalizedClosesAtMs - Date.now()) / 1000));
+  const secondsRemaining = Number.isFinite(Number(round?.secondsRemaining))
+    ? Number(round.secondsRemaining)
+    : Math.max(0, Math.ceil((normalizedClosesAtMs - resolvedNowMs) / 1000));
 
   return {
     drawId: String(round?.roundNumber || round?.id || ''),
@@ -51,7 +57,8 @@ export function mapBackendRound(round: any) {
     startsAt: round?.startsAt,
     closesAt: new Date(normalizedClosesAtMs).toISOString(),
     endsAt: round?.endsAt || new Date(endsAtMs).toISOString(),
-    secondsRemaining: Math.min(secondsRemaining, 60),
+    phase: round?.phase,
+    secondsRemaining: Math.max(0, Math.min(secondsRemaining, 90)),
   };
 }
 

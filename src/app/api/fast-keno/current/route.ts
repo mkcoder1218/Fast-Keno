@@ -17,8 +17,8 @@ export async function GET(request: Request) {
       return NextResponse.json({
         ok: true,
         payload: {
-          serverTime: new Date().toISOString(),
-          round: mapBackendRound(current.round),
+          serverTime: current.serverTime || new Date().toISOString(),
+          round: mapBackendRound(current.round, current.serverTime),
           balance: null,
           tickets: (ticketResult.tickets || []).map(mapBackendTicket),
           draws: [],
