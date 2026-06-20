@@ -185,6 +185,33 @@ export default function App() {
     }))
   );
 
+  const ensureOtherPlayerTickets = (drawId: string, count = 5) => {
+    setTickets((prev) => {
+      const activeOtherCount = prev.filter(
+        (ticket) => ticket.isMine === false && ticket.status === 'Waiting' && ticket.drawId === drawId
+      ).length;
+
+      if (activeOtherCount >= count) {
+        return prev;
+      }
+
+      const byId = new Map<string, Ticket>();
+      [...prev, ...makeOtherPlayerTickets(drawId, count - activeOtherCount)].forEach((ticket) => {
+        byId.set(ticket.id, ticket);
+      });
+
+      return Array.from(byId.values()).sort((a, b) => {
+        if (a.status === 'Waiting' && b.status !== 'Waiting') return -1;
+        if (a.status !== 'Waiting' && b.status === 'Waiting') return 1;
+        if (a.status === 'Waiting' && b.status === 'Waiting') {
+          if (a.isMine !== false && b.isMine === false) return -1;
+          if (a.isMine === false && b.isMine !== false) return 1;
+        }
+        return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
+      });
+    });
+  };
+
   // Bulletproof cleanup of active timers on unmount
   useEffect(() => {
     return () => {
@@ -194,6 +221,17 @@ export default function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (isDrawing || !currentDrawId) return;
+
+    ensureOtherPlayerTickets(currentDrawId, 5);
+    const timer = window.setInterval(() => {
+      ensureOtherPlayerTickets(currentDrawId, 5);
+    }, 8000);
+
+    return () => window.clearInterval(timer);
+  }, [currentDrawId, isDrawing]);
 
   const triggerToast = (_text: string, _type: 'success' | 'info' | 'error' = 'info') => {};
 
@@ -500,6 +538,11 @@ export default function App() {
     simulateLeaderboardActivity(combination);
     setActiveDrawnNumbers([]);
     setVisibleDrawnNumbers([]);
+    const nextDrawId = String(Number(currentDrawId) + 1);
+    setCurrentDrawId(nextDrawId);
+    setCountdown(DRAW_SECONDS);
+    ensureOtherPlayerTickets(nextDrawId, 5);
+    setIsDrawing(false);
 
     const nextRoundParams = new URLSearchParams({ userId });
     if (launchAuthToken) {
@@ -513,17 +556,13 @@ export default function App() {
       .then((res) => res.json())
       .then((data) => {
         if (!data?.ok) return;
-        setCurrentDrawId(data.payload.round.drawId);
-        setCountdown(Math.max(1, Math.min(DRAW_SECONDS, Number(data.payload.round.secondsRemaining || DRAW_SECONDS))));
         if (Array.isArray(data.payload.tickets)) {
           mergeTickets(data.payload.tickets);
         }
       })
       .catch(() => {
-        setCurrentDrawId(String(Number(currentDrawId) + 1));
+        ensureOtherPlayerTickets(nextDrawId, 5);
       });
-    setCountdown(DRAW_SECONDS);
-    setIsDrawing(false);
   };
 
   const updateStatistics = (newCombo: number[]) => {
