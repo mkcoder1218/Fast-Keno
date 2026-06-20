@@ -513,30 +513,20 @@ export default function MiddlePanel({
         <>
           {/* Top Header Row carrying Logo, Timer and Burger Menu */}
           <div className="relative w-full h-[26px] md:h-[61px] shrink-0" id="middle-logo-header">
-            {/* FAST KENO brand name (hidden on mobile, handled by main header) */}
-            <h1 
-              className="absolute left-1/2 hidden -select-none items-center justify-center text-center font-black leading-none md:flex"
+            <img
+              src="/logo.png"
+              alt="Fast Keno"
+              className="absolute left-1/2 -translate-x-1/2 select-none pointer-events-none"
               style={{
-                fontFamily: '"Arial Black", "Impact", sans-serif',
-                fontStyle: 'italic',
-                fontWeight: 800,
-                letterSpacing: '-1.5px',
-                fontSize: '23px',
-                transform: 'translateX(-50%) skewX(-8deg)',
-                color: '#cfd8d6',
-                left: '50%',
-                top: '8px',
-                textShadow: '0 1.5px 2px rgba(0,0,0,0.8), 0 0 3px rgba(66,200,120,0.35)'
+                top: typeof window !== 'undefined' && window.innerWidth < 768 ? '-2px' : '5px',
+                width: typeof window !== 'undefined' && window.innerWidth < 768 ? '116px' : '156px',
+                height: 'auto',
+                filter: 'drop-shadow(0 1.5px 2px rgba(0,0,0,0.85)) drop-shadow(0 0 3px rgba(66,200,120,0.3))',
               }}
-            >
-              FAST<span className="text-[#42c878]">KEN</span>
-              <span className="inline-flex items-center justify-center bg-[#42c878] rounded-full" style={{ width: '16px', height: '16px', position: 'relative', top: '0.8px', marginLeft: '1px', marginRight: '2px', boxShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
-                <span style={{ width: 0, height: 0, borderTop: '3.5px solid transparent', borderBottom: '3.5px solid transparent', borderLeft: '5.5px solid #11191c' }}></span>
-              </span>
-            </h1>
+            />
 
             {/* Digital Timer Clock with cyan outer shadow glow */}
-            <div className="absolute left-1/2 -translate-x-1/2 top-0 md:top-[34px] text-center flex items-center justify-center select-none w-[120px] h-[28px]">
+            <div className="absolute left-1/2 -translate-x-1/2 top-[22px] md:top-[34px] text-center flex items-center justify-center select-none w-[120px] h-[28px]">
               {/* Soft background glow horizontal flare */}
               <div 
                 className="absolute inset-0 bg-[#06b6d4]/10 blur-[8px] rounded-full scale-y-[0.3]" 
