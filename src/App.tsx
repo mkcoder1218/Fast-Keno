@@ -174,12 +174,15 @@ export default function App() {
       return;
     }
 
-    const nextWaitEndsAtMs = getServerNowMs() + WAIT_SECONDS * 1000;
+    const nextWaitEndsAtMs = Number.isFinite(closesAtMs)
+      ? closesAtMs
+      : getServerNowMs() + Math.max(0, Math.min(WAIT_SECONDS, secondsRemaining || WAIT_SECONDS)) * 1000;
+    const nextCountdown = getSecondsUntil(nextWaitEndsAtMs);
     clientWaitDrawIdRef.current = nextDrawId;
     clientWaitEndsAtRef.current = nextWaitEndsAtMs;
     setCurrentDrawId(nextDrawId);
     setRoundClosesAtMs(nextWaitEndsAtMs);
-    setCountdown(WAIT_SECONDS);
+    setCountdown(nextCountdown);
   };
   
   // Selection States
