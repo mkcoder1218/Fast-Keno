@@ -37,17 +37,7 @@ function getFastKenoSocketUrl(backendApiBase?: string, explicitSocketUrl?: strin
     return rawSocketUrl.trim();
   }
 
-  const rawApiBase = backendApiBase || process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL || 'https://api.king5.bet/api';
-  try {
-    const url = new URL(rawApiBase);
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    url.pathname = url.pathname.replace(/\/api\/?$/i, '');
-    url.pathname = `${url.pathname.replace(/\/+$/, '')}/api/games/fast-keno/socket`;
-    url.search = '';
-    return url.toString();
-  } catch {
-    return '';
-  }
+  return '';
 }
 
 function normalizeSocketTicket(raw: any): Ticket | null {
@@ -98,13 +88,6 @@ export default function App() {
       const normalizedCloseMs = startsAtMs + WAIT_SECONDS * 1000;
       if (normalizedCloseMs > serverNowMs) {
         return Math.min(normalizedCloseMs, maxWaitCloseMs);
-      }
-    }
-
-    if (round?.secondsRemaining !== undefined) {
-      const secondsRemaining = Math.max(0, Number(round.secondsRemaining || 0));
-      if (Number.isFinite(secondsRemaining)) {
-        return serverNowMs + Math.min(secondsRemaining, WAIT_SECONDS) * 1000;
       }
     }
 
@@ -167,11 +150,6 @@ export default function App() {
       return;
     }
 
-    const nextRoundClosesAtMs = getRoundCloseMs(round, nextDrawId);
-    setCurrentDrawId(nextDrawId);
-    setRoundClosesAtMs(nextRoundClosesAtMs);
-    setCountdown(getSecondsUntil(nextRoundClosesAtMs));
-
     const secondsRemaining = Number(round.secondsRemaining);
     const previousDrawId = String(Number(nextDrawId) - 1);
     if (
@@ -182,7 +160,15 @@ export default function App() {
     ) {
       const elapsedPopMs = (WAIT_SECONDS - Math.min(secondsRemaining, WAIT_SECONDS)) * 1000;
       triggerLiveDrawing(previousDrawId, elapsedPopMs);
+      return;
     }
+
+    const nextWaitEndsAtMs = getServerNowMs() + WAIT_SECONDS * 1000;
+    clientWaitDrawIdRef.current = nextDrawId;
+    clientWaitEndsAtRef.current = nextWaitEndsAtMs;
+    setCurrentDrawId(nextDrawId);
+    setRoundClosesAtMs(nextWaitEndsAtMs);
+    setCountdown(WAIT_SECONDS);
   };
   
   // Selection States
@@ -913,10 +899,7 @@ export default function App() {
       ].map((ticket: Ticket) => ({
         ...ticket,
       })));
-      setCurrentDrawId(data.payload.round.drawId);
-      const betRoundClosesAtMs = getRoundCloseMs(data.payload.round, data.payload.round.drawId);
-      setRoundClosesAtMs(betRoundClosesAtMs);
-      setCountdown(getSecondsUntil(betRoundClosesAtMs));
+      syncRoundPhase(data.payload.round);
       setSelectedNumbers([]);
       setBetAcceptedFlash(true);
       window.setTimeout(() => {
