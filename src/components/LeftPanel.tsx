@@ -74,10 +74,13 @@ export default function LeftPanel({
   const pastPlacedTickets = tickets.filter(t => t.status !== 'Waiting');
   const myActiveTickets = activePlacedTickets.filter((t) => t.isMine !== false);
   const myPastTickets = pastPlacedTickets.filter((t) => t.isMine !== false);
+  const myBetTickets = tickets.filter((t) => t.isMine !== false).sort(newestTicketFirst);
   const wonTickets = pastPlacedTickets.filter((t) => t.status === 'Won');
   const activeDrawnNumberSet = new Set(activeDrawnNumbers);
   const activeDisplayTickets = activeSubTab === 'All'
     ? [...activePlacedTickets].sort(newestTicketFirst)
+    : activeSubTab === 'My Bets'
+    ? myBetTickets
     : myActiveTickets;
   const pastDisplayTickets = activeSubTab === 'All'
     ? [...pastPlacedTickets].sort(newestTicketFirst)
@@ -202,7 +205,7 @@ export default function LeftPanel({
           >
             <span>My Bets</span>
             <span className="text-[#39d98a]/80 font-bold font-mono">
-              {activeTab === 'GAME' ? myActiveTickets.length : myPastTickets.length}
+              {activeTab === 'GAME' ? myBetTickets.length : myPastTickets.length}
             </span>
           </button>
         </div>
@@ -224,9 +227,13 @@ export default function LeftPanel({
           activeDisplayTickets.map((ticket, idx) => {
             const displayMask = ticket.isMine === false ? String(ticket.userId || `USER***${ticket.id.slice(-3)}`) : `USER***${ticket.id.slice(-3)}`;
             const nums = ticket.selectedNumbers;
+            const isWaiting = ticket.status === 'Waiting';
+            const isWon = ticket.status === 'Won';
             const greenNums = ticket.isMine === false
               ? []
-              : nums.filter((num) => activeDrawnNumberSet.has(num));
+              : isWaiting
+              ? nums.filter((num) => activeDrawnNumberSet.has(num))
+              : ticket.matchedNumbers || [];
             const betText = `Bet ${ticket.betAmount}`;
             const isPlacing = placingTicketIds.includes(ticket.id);
             const isGreenTicket = isPlacing;
@@ -290,8 +297,16 @@ export default function LeftPanel({
                     {betText}
                   </div>
                   <div className={`${isGreenTicket ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-right flex items-center justify-end rounded-r-[2.5px]`}>
-                    <span className={`font-extrabold uppercase text-[10px] ${isGreenTicket ? 'text-[#7ff0a6] animate-pulse' : 'text-[#facc15]'}`}>
-                      Waiting
+                    <span className={`font-extrabold uppercase text-[10px] ${
+                      isGreenTicket
+                        ? 'text-[#7ff0a6] animate-pulse'
+                        : isWaiting
+                        ? 'text-[#facc15]'
+                        : isWon
+                        ? 'text-[#39d98a]'
+                        : 'text-zinc-500'
+                    }`}>
+                      {isWaiting ? 'Waiting' : isWon ? ((ticket.winAmount || 0).toLocaleString('en-US')) : 'Missed'}
                     </span>
                   </div>
                 </div>
