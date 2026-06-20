@@ -156,6 +156,17 @@ export default function App() {
     const nextDrawId = String(round.drawId || round.roundNumber || round.id || '');
     if (!nextDrawId) return;
 
+    if (
+      clientWaitDrawIdRef.current === nextDrawId &&
+      clientWaitEndsAtRef.current > getServerNowMs() &&
+      !isDrawing
+    ) {
+      setCurrentDrawId(nextDrawId);
+      setRoundClosesAtMs(clientWaitEndsAtRef.current);
+      setCountdown(getSecondsUntil(clientWaitEndsAtRef.current));
+      return;
+    }
+
     const nextRoundClosesAtMs = getRoundCloseMs(round, nextDrawId);
     setCurrentDrawId(nextDrawId);
     setRoundClosesAtMs(nextRoundClosesAtMs);
@@ -166,6 +177,7 @@ export default function App() {
     if (
       Number.isFinite(secondsRemaining) &&
       secondsRemaining > POP_SECONDS &&
+      !isDrawing &&
       previousDrawId !== drawingDrawIdRef.current
     ) {
       const elapsedPopMs = (WAIT_SECONDS - Math.min(secondsRemaining, WAIT_SECONDS)) * 1000;
@@ -232,6 +244,8 @@ export default function App() {
   const ballTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentDrawIdRef = useRef<string>(initialDrawId);
   const drawingDrawIdRef = useRef<string | null>(null);
+  const clientWaitDrawIdRef = useRef<string | null>(null);
+  const clientWaitEndsAtRef = useRef<number>(0);
   const settledRoundRef = useRef<any>(null);
 
   useEffect(() => {
@@ -472,12 +486,22 @@ export default function App() {
             syncRoundPhase(round);
           }
           if (round?.secondsRemaining !== undefined) {
-            const fallbackCloseMs = getServerNowMs() + Math.min(
-              Math.max(0, Number(round.secondsRemaining || 0)),
-              WAIT_SECONDS
-            ) * 1000;
-            setRoundClosesAtMs(fallbackCloseMs);
-            setCountdown(getSecondsUntil(fallbackCloseMs));
+            const fallbackDrawId = String(round.drawId || round.roundNumber || round.id || '');
+            const shouldKeepClientWait =
+              fallbackDrawId &&
+              clientWaitDrawIdRef.current === fallbackDrawId &&
+              clientWaitEndsAtRef.current > getServerNowMs();
+            if (shouldKeepClientWait) {
+              setRoundClosesAtMs(clientWaitEndsAtRef.current);
+              setCountdown(getSecondsUntil(clientWaitEndsAtRef.current));
+            } else {
+              const fallbackCloseMs = getServerNowMs() + Math.min(
+                Math.max(0, Number(round.secondsRemaining || 0)),
+                WAIT_SECONDS
+              ) * 1000;
+              setRoundClosesAtMs(fallbackCloseMs);
+              setCountdown(getSecondsUntil(fallbackCloseMs));
+            }
           }
           if (payload.balance !== undefined && payload.balance !== null) {
             const nextBalance = Number(payload.balance);
@@ -523,6 +547,8 @@ export default function App() {
 
       if (nextSeconds <= 0) {
         clearInterval(timer);
+        clientWaitDrawIdRef.current = null;
+        clientWaitEndsAtRef.current = 0;
         triggerLiveDrawing(currentDrawIdRef.current);
         return;
       }
@@ -716,10 +742,12 @@ export default function App() {
     drawingDrawIdRef.current = null;
     setDrawingDrawId(null);
     const nextDrawId = String(Number(completedDrawId) + 1);
-    const nextRoundClosesAtMs = getRoundCloseMs(undefined, nextDrawId);
+    const nextWaitEndsAtMs = getServerNowMs() + WAIT_SECONDS * 1000;
+    clientWaitDrawIdRef.current = nextDrawId;
+    clientWaitEndsAtRef.current = nextWaitEndsAtMs;
     setCurrentDrawId(nextDrawId);
-    setRoundClosesAtMs(nextRoundClosesAtMs);
-    setCountdown(getSecondsUntil(nextRoundClosesAtMs));
+    setRoundClosesAtMs(nextWaitEndsAtMs);
+    setCountdown(WAIT_SECONDS);
     ensureOtherPlayerTickets(nextDrawId, 5);
     setIsDrawing(false);
 
@@ -737,11 +765,7 @@ export default function App() {
         if (!data?.ok) return;
         syncServerTime(data.payload?.serverTime);
         if (data.payload?.round?.drawId) {
-          const serverDrawId = String(data.payload.round.drawId);
-          const serverRoundClosesAtMs = getRoundCloseMs(data.payload.round, serverDrawId);
-          setCurrentDrawId(serverDrawId);
-          setRoundClosesAtMs(serverRoundClosesAtMs);
-          setCountdown(getSecondsUntil(serverRoundClosesAtMs));
+          syncRoundPhase(data.payload.round);
         }
         if (Array.isArray(data.payload.tickets)) {
           mergeTickets(data.payload.tickets.map((ticket: Ticket, index: number) => ({

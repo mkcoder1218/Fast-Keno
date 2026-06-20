@@ -90,6 +90,8 @@ export default function MiddlePanel({
 
   const incomingQueueRef = React.useRef<number[]>([]);
   const isProcessingRef = React.useRef(false);
+  const activeDrawKey = React.useMemo(() => activeDrawnNumbers.join(','), [activeDrawnNumbers]);
+  const initialSettledKey = React.useMemo(() => initialSettledNumbers.join(','), [initialSettledNumbers]);
 
   // Helper delay
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -177,7 +179,7 @@ export default function MiddlePanel({
     if (queueChanged) {
       processQueue();
     }
-  }, [activeDrawnNumbers, initialSettledNumbers, isDrawing]);
+  }, [activeDrawKey, initialSettledKey, isDrawing]);
 
   const handleAdjustBet = (multiplier: number) => {
     playClickSound();
