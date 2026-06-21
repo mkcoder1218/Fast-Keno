@@ -196,8 +196,6 @@ export default function App() {
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [betAmount, setBetAmount] = useState<number>(2);
   const [activeNavItem, setActiveNavItem] = useState<string>('GAMES');
-  const [placingTicketIds, setPlacingTicketIds] = useState<string[]>([]);
-  const [betAcceptedFlash, setBetAcceptedFlash] = useState<boolean>(false);
   const [isSocketConnected, setIsSocketConnected] = useState<boolean>(false);
 
   // Viewport states for mobile flexibility
@@ -291,12 +289,17 @@ export default function App() {
           ...existing,
           ...ticket,
           receivedAt: ticket.receivedAt ?? existing?.receivedAt ?? Date.now(),
+          justPlacedAt: ticket.justPlacedAt ?? existing?.justPlacedAt,
         });
       });
       return Array.from(byId.values()).sort((a, b) => {
         if (a.status === 'Waiting' && b.status !== 'Waiting') return -1;
         if (a.status !== 'Waiting' && b.status === 'Waiting') return 1;
         if (a.status === 'Waiting' && b.status === 'Waiting') {
+          const justPlacedDiff = Number(b.justPlacedAt || 0) - Number(a.justPlacedAt || 0);
+          if (justPlacedDiff !== 0) return justPlacedDiff;
+          const mineDiff = (b.isMine !== false ? 1 : 0) - (a.isMine !== false ? 1 : 0);
+          if (mineDiff !== 0) return mineDiff;
           const receivedDiff = Number(b.receivedAt || 0) - Number(a.receivedAt || 0);
           if (receivedDiff !== 0) return receivedDiff;
           const betDiff = Number(b.betAmount || 0) - Number(a.betAmount || 0);
@@ -341,6 +344,10 @@ export default function App() {
         if (a.status === 'Waiting' && b.status !== 'Waiting') return -1;
         if (a.status !== 'Waiting' && b.status === 'Waiting') return 1;
         if (a.status === 'Waiting' && b.status === 'Waiting') {
+          const justPlacedDiff = Number(b.justPlacedAt || 0) - Number(a.justPlacedAt || 0);
+          if (justPlacedDiff !== 0) return justPlacedDiff;
+          const mineDiff = (b.isMine !== false ? 1 : 0) - (a.isMine !== false ? 1 : 0);
+          if (mineDiff !== 0) return mineDiff;
           const receivedDiff = Number(b.receivedAt || 0) - Number(a.receivedAt || 0);
           if (receivedDiff !== 0) return receivedDiff;
           const betDiff = Number(b.betAmount || 0) - Number(a.betAmount || 0);
@@ -876,6 +883,7 @@ export default function App() {
 
     try {
       setIsPlacingBet(true);
+      const placedAt = Date.now();
       const res = await fetch('/api/fast-keno/bets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -900,28 +908,19 @@ export default function App() {
         ...(data.payload.tickets || []).map((ticket: Ticket, index: number) => ({
           ...ticket,
           isMine: ticket.isMine ?? true,
-          receivedAt: Date.now() + index,
+          receivedAt: placedAt + index,
+          justPlacedAt: placedAt + index,
         })),
         ...(data.payload.ticket ? [{
           ...data.payload.ticket,
           isMine: true,
-          receivedAt: Date.now() + 1000,
+          receivedAt: placedAt + 1000,
+          justPlacedAt: placedAt + 1000,
         }] : []),
       ].map((ticket: Ticket) => ({
         ...ticket,
       })));
       setSelectedNumbers([]);
-      setBetAcceptedFlash(true);
-      window.setTimeout(() => {
-        setBetAcceptedFlash(false);
-      }, 1400);
-      if (data.payload.ticket?.id) {
-        const nextTicketId = String(data.payload.ticket.id);
-        setPlacingTicketIds((prev) => [...prev.filter((id) => id !== nextTicketId), nextTicketId]);
-        window.setTimeout(() => {
-          setPlacingTicketIds((prev) => prev.filter((id) => id !== nextTicketId));
-        }, 5000);
-      }
       triggerToast(`Stake of ${betAmount} placed successfully for Draw #${data.payload.round.drawId}!`, 'success');
     } catch (error) {
       triggerToast(error instanceof Error ? error.message : 'Bet failed on local service.', 'error');
@@ -1047,7 +1046,7 @@ export default function App() {
                 balance={balance} 
                 userId={shortUserId} 
                 tickets={tickets} 
-                placingTicketIds={placingTicketIds}
+                placingTicketIds={[]}
                 activeDrawnNumbers={ticketDrawHighlights}
                 hideWalletHeader={isEmbeddedInKing5}
                 onClearHistory={handleClearHistory} 
@@ -1066,7 +1065,6 @@ export default function App() {
                 onPlaceBet={handlePlaceBet}
                 isDrawing={isDrawing}
                 isPlacingBet={isPlacingBet}
-                betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
                 initialSettledNumbers={initialSettledNumbers}
                 highlightNumbers={drawingHighlightNumbers}
@@ -1111,7 +1109,6 @@ export default function App() {
                 onPlaceBet={handlePlaceBet}
                 isDrawing={isDrawing}
                 isPlacingBet={isPlacingBet}
-                betAcceptedFlash={betAcceptedFlash}
                 activeDrawnNumbers={activeDrawnNumbers}
                 initialSettledNumbers={initialSettledNumbers}
                 highlightNumbers={drawingHighlightNumbers}
@@ -1155,7 +1152,7 @@ export default function App() {
                   balance={balance} 
                   userId={shortUserId} 
                   tickets={tickets} 
-                  placingTicketIds={placingTicketIds}
+                  placingTicketIds={[]}
                   activeDrawnNumbers={ticketDrawHighlights}
                   onClearHistory={handleClearHistory}
                   forceTab="GAME"
@@ -1167,7 +1164,7 @@ export default function App() {
                   balance={balance} 
                   userId={shortUserId} 
                   tickets={tickets} 
-                  placingTicketIds={placingTicketIds}
+                  placingTicketIds={[]}
                   activeDrawnNumbers={ticketDrawHighlights}
                   onClearHistory={handleClearHistory}
                   forceTab="HISTORY"

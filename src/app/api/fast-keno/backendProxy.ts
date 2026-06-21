@@ -23,10 +23,17 @@ export async function backendRequest(path: string, token: string, init: RequestI
   });
 
   const data = await res.json().catch(() => null);
-  if (!res.ok || Number(data?.code) !== 0) {
-    throw new Error(data?.message || data?.msg || 'Fast Keno backend request failed.');
+  const hasCode = data && Object.prototype.hasOwnProperty.call(data, 'code');
+  if (!res.ok || (hasCode && Number(data?.code) !== 0)) {
+    const message =
+      data?.error?.message ||
+      data?.message ||
+      data?.msg ||
+      (res.status === 401 ? 'Please log in again to place Fast Keno bets.' : '') ||
+      'Fast Keno backend request failed.';
+    throw new Error(message);
   }
-  return data.payload;
+  return data?.payload ?? data;
 }
 
 export function getAuthToken(value: unknown) {

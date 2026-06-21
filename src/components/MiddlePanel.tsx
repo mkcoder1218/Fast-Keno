@@ -13,7 +13,6 @@ interface MiddlePanelProps {
   onPlaceBet: () => void;
   isDrawing: boolean;
   isPlacingBet?: boolean;
-  betAcceptedFlash?: boolean;
   activeDrawnNumbers: number[];
   initialSettledNumbers?: number[];
   highlightNumbers?: number[];
@@ -36,7 +35,6 @@ export default function MiddlePanel({
   onPlaceBet,
   isDrawing,
   isPlacingBet = false,
-  betAcceptedFlash = false,
   activeDrawnNumbers,
   initialSettledNumbers = [],
   highlightNumbers = selectedNumbers,
@@ -788,19 +786,15 @@ export default function MiddlePanel({
                 onClick={() => {
                   onPlaceBet();
                 }}
-                disabled={isDrawing || isPlacingBet || selectedNumbers.length === 0}
+                disabled={isDrawing || selectedNumbers.length === 0}
                 className={`w-full md:flex-1 h-9 rounded font-extrabold tracking-widest text-[13px] uppercase cursor-pointer transition-all active:scale-[0.98] flex items-center justify-center outline-none ${
                   selectedNumbers.length === 0
                   ? 'bg-[#1b2528] text-[#4a585c] cursor-not-allowed border border-[#2e3e43]/20'
-                  : isDrawing || isPlacingBet
-                  ? 'bg-[#1a2530] text-cyan-400 border border-cyan-400/40 animate-pulse cursor-wait'
-                  : betAcceptedFlash
-                  ? 'bg-gradient-to-b from-[#23744a] to-[#174d32] text-[#d8ffe8] border border-[#45b977] shadow-md shadow-[#45b977]/15'
                   : 'bg-gradient-to-b from-[#1c7e4f] to-[#0e4b2d] hover:from-[#1e8d58] hover:to-[#105934] text-white border border-[#22975e] shadow-md shadow-brand-neon/5'
                 }`}
                 id="bet-submit-button"
               >
-              {isDrawing ? 'Drawing' : isPlacingBet ? 'Waiting' : betAcceptedFlash ? 'Bet Accepted' : 'BET'}
+              {isDrawing ? 'Drawing' : 'BET'}
             </button>
 
           </div>

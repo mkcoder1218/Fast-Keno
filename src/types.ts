@@ -11,6 +11,7 @@ export interface Ticket {
   matchedNumbers?: number[];
   isMine?: boolean;
   receivedAt?: number;
+  justPlacedAt?: number;
 }
 
 export interface DrawResult {

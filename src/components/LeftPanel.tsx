@@ -34,6 +34,10 @@ const getTicketTimeKey = (ticket: Ticket) => {
 };
 
 const newestTicketFirst = (a: Ticket, b: Ticket) => {
+  const justPlacedDiff = Number(b.justPlacedAt || 0) - Number(a.justPlacedAt || 0);
+  if (justPlacedDiff !== 0) return justPlacedDiff;
+  const mineDiff = (b.isMine !== false ? 1 : 0) - (a.isMine !== false ? 1 : 0);
+  if (mineDiff !== 0) return mineDiff;
   const timeDiff = getTicketTimeKey(b) - getTicketTimeKey(a);
   if (timeDiff !== 0) return timeDiff;
   const betDiff = Number(b.betAmount || 0) - Number(a.betAmount || 0);
@@ -253,8 +257,8 @@ export default function LeftPanel({
               >
                 {isPlacing && (
                   <>
-                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(165,255,208,0.08)_35%,rgba(255,255,255,0.16)_50%,rgba(165,255,208,0.08)_65%,transparent_100%)] animate-[ticket-sweep_1s_ease-in-out_infinite]" />
-                    <div className="pointer-events-none absolute right-2 bottom-2 text-white text-[18px] animate-[ticket-pop_0.65s_ease-in-out_infinite]">✓</div>
+                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(165,255,208,0.08)_35%,rgba(255,255,255,0.16)_50%,rgba(165,255,208,0.08)_65%,transparent_100%)] animate-[ticket-sweep_0.7s_ease-out_1]" />
+                    <div className="pointer-events-none absolute right-2 bottom-2 text-white text-[18px] animate-[ticket-pop_0.45s_ease-out_1]">✓</div>
                   </>
                 )}
                 {/* Compact Row 1: Username mask */}
@@ -299,7 +303,7 @@ export default function LeftPanel({
                   <div className={`${isGreenTicket ? 'bg-[#21452f]' : 'bg-[#141b1d]'} py-[2.5px] px-2 text-right flex items-center justify-end rounded-r-[2.5px]`}>
                     <span className={`font-extrabold uppercase text-[10px] ${
                       isGreenTicket
-                        ? 'text-[#7ff0a6] animate-pulse'
+                        ? 'text-[#7ff0a6]'
                         : isWaiting
                         ? 'text-[#facc15]'
                         : isWon
@@ -379,3 +383,4 @@ export default function LeftPanel({
     </div>
   );
 }
+
