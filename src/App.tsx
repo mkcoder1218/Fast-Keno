@@ -264,7 +264,7 @@ export default function App() {
     () => Array.from(new Set([
       ...selectedNumbers,
       ...tickets
-        .filter((ticket) => ticket.isMine !== false && ticket.status === 'Waiting')
+        .filter((ticket) => ticket.isMine === true && ticket.status === 'Waiting')
         .flatMap((ticket) => ticket.selectedNumbers),
     ])),
     [selectedNumbers, tickets]
@@ -519,7 +519,7 @@ export default function App() {
             .filter((ticket): ticket is Ticket => Boolean(ticket))
             .map((ticket) => ({
               ...ticket,
-              isMine: ticket.isMine ?? (ticket.userId ? String(ticket.userId) === userId : undefined),
+              isMine: ticket.isMine ?? (ticket.userId ? String(ticket.userId) === userId : false),
             }));
 
           if (nextTickets.length) {

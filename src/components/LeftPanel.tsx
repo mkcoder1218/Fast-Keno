@@ -76,9 +76,9 @@ export default function LeftPanel({
   // Active placed tickets (from state)
   const activePlacedTickets = tickets.filter(t => t.status === 'Waiting');
   const pastPlacedTickets = tickets.filter(t => t.status !== 'Waiting');
-  const myActiveTickets = activePlacedTickets.filter((t) => t.isMine !== false);
-  const myPastTickets = pastPlacedTickets.filter((t) => t.isMine !== false);
-  const myBetTickets = tickets.filter((t) => t.isMine !== false).sort(newestTicketFirst);
+  const myActiveTickets = activePlacedTickets.filter((t) => t.isMine === true);
+  const myPastTickets = pastPlacedTickets.filter((t) => t.isMine === true);
+  const myBetTickets = tickets.filter((t) => t.isMine === true).sort(newestTicketFirst);
   const wonTickets = pastPlacedTickets.filter((t) => t.status === 'Won');
   const activeDrawnNumberSet = new Set(activeDrawnNumbers);
   const activeDisplayTickets = activeSubTab === 'All'
