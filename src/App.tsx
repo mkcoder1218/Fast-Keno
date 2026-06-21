@@ -83,17 +83,17 @@ export default function App() {
   const getRoundCloseMs = (round?: any, fallbackDrawId?: string) => {
     const serverNowMs = getServerNowMs();
     const maxWaitCloseMs = serverNowMs + WAIT_SECONDS * 1000;
+    const closesAtMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
+    if (Number.isFinite(closesAtMs)) {
+      return Math.min(closesAtMs, maxWaitCloseMs);
+    }
+
     const startsAtMs = round?.startsAt ? new Date(round.startsAt).getTime() : NaN;
     if (Number.isFinite(startsAtMs)) {
       const normalizedCloseMs = startsAtMs + WAIT_SECONDS * 1000;
       if (normalizedCloseMs > serverNowMs) {
         return Math.min(normalizedCloseMs, maxWaitCloseMs);
       }
-    }
-
-    const closesAtMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
-    if (Number.isFinite(closesAtMs)) {
-      return Math.min(closesAtMs, maxWaitCloseMs);
     }
 
     const drawId = String(round?.drawId || round?.roundNumber || round?.id || fallbackDrawId || initialDrawId);
@@ -156,6 +156,30 @@ export default function App() {
     if (!round) return;
     const nextDrawId = String(round.drawId || round.roundNumber || round.id || '');
     if (!nextDrawId) return;
+    const backendPhase = String(round.phase || '').toLowerCase();
+    const backendCloseMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
+    const backendEndsMs = round?.endsAt ? new Date(round.endsAt).getTime() : NaN;
+    const backendSeconds = Number(round.waitSecondsRemaining ?? round.secondsRemaining);
+
+    if (backendPhase === 'waiting' && Number.isFinite(backendCloseMs) && backendCloseMs > getServerNowMs()) {
+      clientWaitDrawIdRef.current = nextDrawId;
+      clientWaitEndsAtRef.current = backendCloseMs;
+      setCurrentDrawId(nextDrawId);
+      setRoundClosesAtMs(backendCloseMs);
+      setCountdown(Number.isFinite(backendSeconds) ? Math.max(0, Math.min(backendSeconds, WAIT_SECONDS)) : getSecondsUntil(backendCloseMs));
+      if (isDrawing) {
+        setIsDrawing(false);
+        setDrawingDrawId(null);
+        drawingDrawIdRef.current = null;
+      }
+      return;
+    }
+
+    if (backendPhase === 'drawing' && !isDrawing) {
+      const targetMs = Number.isFinite(backendEndsMs) ? backendEndsMs : getServerNowMs() + POP_SECONDS * 1000;
+      void triggerLiveDrawing(nextDrawId, undefined, targetMs);
+      return;
+    }
 
     const globalState = getGlobalRoundState();
     const globalDrawId = String(globalState.cycleIndex);
@@ -867,6 +891,31 @@ export default function App() {
     triggerToast(`⚡ Selected ${count} numbers automatically!`, 'info');
   };
 
+  const refreshCurrentRound = async () => {
+    const currentParams = new URLSearchParams({ userId });
+    if (launchAuthToken) currentParams.set('authToken', launchAuthToken);
+    if (launchBackendApiBase) currentParams.set('backendApiBase', launchBackendApiBase);
+    const res = await fetch(`/api/fast-keno/current?${currentParams.toString()}`, { cache: 'no-store' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.ok) return;
+    const payload = data.payload || {};
+    syncServerTime(payload.serverTime);
+    if (payload.round) syncRoundPhase(payload.round);
+    if (Array.isArray(payload.tickets)) {
+      mergeTickets(payload.tickets.map((ticket: Ticket, index: number) => ({
+        ...ticket,
+        receivedAt: Date.now() + index,
+      })));
+    }
+    if (payload.balance !== null && payload.balance !== undefined) {
+      const nextBalance = Number(payload.balance);
+      if (Number.isFinite(nextBalance)) {
+        setBalance(nextBalance);
+        syncParentWallet(nextBalance);
+      }
+    }
+  };
+
   const handlePlaceBet = async () => {
     if (isDrawing || isPlacingBet) return;
     if (selectedNumbers.length === 0) {
@@ -923,7 +972,11 @@ export default function App() {
       setSelectedNumbers([]);
       triggerToast(`Stake of ${betAmount} placed successfully for Draw #${data.payload.round.drawId}!`, 'success');
     } catch (error) {
-      triggerToast(error instanceof Error ? error.message : 'Bet failed on local service.', 'error');
+      const message = error instanceof Error ? error.message : 'Bet failed on local service.';
+      if (/round is closed/i.test(message)) {
+        await refreshCurrentRound().catch(() => undefined);
+      }
+      triggerToast(message, 'error');
     } finally {
       setIsPlacingBet(false);
     }

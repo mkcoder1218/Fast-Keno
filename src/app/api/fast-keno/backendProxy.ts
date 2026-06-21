@@ -47,19 +47,28 @@ export function mapBackendRound(round: any, serverTime?: unknown) {
     : new Date(String(serverTime || '')).getTime();
   const resolvedNowMs = Number.isFinite(nowMs) ? nowMs : Date.now();
   const startsAtMs = round?.startsAt ? new Date(round.startsAt).getTime() : NaN;
-  const closesAtMs = new Date(round?.closesAt || Date.now()).getTime();
-  const normalizedClosesAtMs = Number.isFinite(startsAtMs)
-    ? startsAtMs + 60 * 1000
-    : closesAtMs;
-  const endsAtMs = Number.isFinite(startsAtMs)
-    ? startsAtMs + 90 * 1000
-    : normalizedClosesAtMs + 30 * 1000;
+  const closesAtMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
+  const normalizedClosesAtMs = Number.isFinite(closesAtMs)
+    ? closesAtMs
+    : Number.isFinite(startsAtMs)
+      ? startsAtMs + 60 * 1000
+      : Date.now();
+  const rawEndsAtMs = round?.endsAt ? new Date(round.endsAt).getTime() : NaN;
+  const endsAtMs = Number.isFinite(rawEndsAtMs)
+    ? rawEndsAtMs
+    : Number.isFinite(startsAtMs)
+      ? startsAtMs + 90 * 1000
+      : normalizedClosesAtMs + 30 * 1000;
   const startsInFuture = Number.isFinite(startsAtMs) && resolvedNowMs < startsAtMs;
-  const isDrawing = startsInFuture ||
+  const backendPhase = String(round?.phase || '').toLowerCase();
+  const isDrawing = backendPhase === 'drawing' || startsInFuture ||
     (Number.isFinite(normalizedClosesAtMs) && resolvedNowMs >= normalizedClosesAtMs && resolvedNowMs < endsAtMs);
-  const secondsRemaining = isDrawing
-    ? Math.max(60, Math.ceil((endsAtMs - resolvedNowMs) / 1000))
-    : Math.max(0, Math.ceil((normalizedClosesAtMs - resolvedNowMs) / 1000));
+  const backendSeconds = Number(round?.waitSecondsRemaining ?? round?.secondsRemaining);
+  const secondsRemaining = Number.isFinite(backendSeconds)
+    ? backendSeconds
+    : isDrawing
+      ? Math.max(0, Math.ceil((endsAtMs - resolvedNowMs) / 1000))
+      : Math.max(0, Math.ceil((normalizedClosesAtMs - resolvedNowMs) / 1000));
 
   return {
     drawId: String(round?.roundNumber || round?.id || ''),
