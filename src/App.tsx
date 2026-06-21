@@ -262,12 +262,11 @@ export default function App() {
   const [drawingDrawId, setDrawingDrawId] = useState<string | null>(null);
   const activeTicketHighlightNumbers = useMemo(
     () => Array.from(new Set([
-      ...selectedNumbers,
       ...tickets
         .filter((ticket) => ticket.isMine === true && ticket.status === 'Waiting')
         .flatMap((ticket) => ticket.selectedNumbers),
     ])),
-    [selectedNumbers, tickets]
+    [tickets]
   );
   const drawingHighlightNumbers = useMemo(
     () => activeTicketHighlightNumbers,
