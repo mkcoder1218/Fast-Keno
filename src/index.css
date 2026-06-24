@@ -107,26 +107,26 @@
 
 /* Custom 3D Shiny Keno Ball Classes */
 .keno-ball-blue-glossy-lg {
-  background: radial-gradient(circle at 34% 24%, #86a9bd 0%, #456c82 23%, #173241 58%, #071218 100%) !important;
-  border: 1.5px solid rgba(185, 235, 255, 0.7) !important;
-  box-shadow: inset 2.5px 2.5px 4px rgba(255, 255, 255, 0.48), inset -3px -3.5px 7px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(73, 189, 221, 0.28), 0 0 10px rgba(89, 213, 255, 0.55), 0 7px 12px rgba(0, 0, 0, 0.78) !important;
+  background: radial-gradient(ellipse 82% 42% at 37% 8%, #9baeb9 0%, #758b98 42%, transparent 45%), radial-gradient(circle at 48% 38%, #123b57 0%, #082943 48%, #03192c 73%, #010d19 100%) !important;
+  border: 1.5px solid #55788c !important;
+  box-shadow: inset 0 1px 1px rgba(235, 247, 250, 0.38), inset 0 -9px 14px rgba(0, 4, 11, 0.72), 0 0 0 1px rgba(5, 17, 26, 0.9), 0 4px 7px rgba(0, 0, 0, 0.7) !important;
 }
 
 .keno-ball-blue-glossy-sm {
-  background: radial-gradient(circle at 34% 24%, #86a9bd 0%, #456c82 23%, #173241 58%, #071218 100%) !important;
-  border: 1.2px solid rgba(185, 235, 255, 0.72) !important;
-  box-shadow: inset 1.5px 1.8px 3px rgba(255, 255, 255, 0.48), inset -2px -2px 4px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(73, 189, 221, 0.3), 0 0 7px rgba(89, 213, 255, 0.6), 0 3px 6px rgba(0, 0, 0, 0.72) !important;
+  background: radial-gradient(ellipse 82% 42% at 37% 8%, #91a6b2 0%, #667f8e 42%, transparent 46%), radial-gradient(circle at 48% 38%, #123b57 0%, #082943 48%, #03192c 73%, #010d19 100%) !important;
+  border: 1px solid #54778b !important;
+  box-shadow: inset 0 1px 1px rgba(235, 247, 250, 0.32), inset 0 -5px 8px rgba(0, 4, 11, 0.72), 0 0 0 1px rgba(5, 17, 26, 0.82), 0 2px 4px rgba(0, 0, 0, 0.7) !important;
 }
 
 .keno-ball-green-glossy-lg {
-  background: radial-gradient(circle at 35% 24%, #8ef8c6 0%, #38d98d 24%, #127449 58%, #052817 100%) !important;
-  border: 2px solid rgba(182, 255, 226, 0.72) !important;
-  box-shadow: inset 2.5px 3px 5px rgba(255, 255, 255, 0.55), inset -3.5px -3.5px 6px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(71, 255, 178, 0.35), 0 0 12px rgba(57, 217, 138, 0.62), 0 8px 16px rgba(0, 0, 0, 0.85) !important;
+  background: radial-gradient(ellipse 82% 42% at 37% 8%, #82c2ad 0%, #4d9278 42%, transparent 46%), radial-gradient(circle at 48% 38%, #14926a 0%, #087451 48%, #03462f 73%, #01261a 100%) !important;
+  border: 1.5px solid #4ba283 !important;
+  box-shadow: inset 0 1px 1px rgba(226, 255, 244, 0.34), inset 0 -9px 14px rgba(0, 20, 12, 0.7), 0 0 0 1px rgba(2, 39, 25, 0.9), 0 4px 7px rgba(0, 0, 0, 0.7) !important;
 }
 
 .keno-ball-green-glossy-sm {
-  background: radial-gradient(circle at 35% 24%, #8ef8c6 0%, #38d98d 24%, #127449 58%, #052817 100%) !important;
-  border: 1.5px solid rgba(182, 255, 226, 0.72) !important;
-  box-shadow: inset 1.5px 1.8px 3px rgba(255, 255, 255, 0.55), inset -2px -2px 4px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(71, 255, 178, 0.34), 0 0 8px rgba(57, 217, 138, 0.65), 0 3px 6px rgba(0, 0, 0, 0.72) !important;
+  background: radial-gradient(ellipse 82% 42% at 37% 8%, #75b9a1 0%, #42866e 42%, transparent 46%), radial-gradient(circle at 48% 38%, #14926a 0%, #087451 48%, #03462f 73%, #01261a 100%) !important;
+  border: 1px solid #489a7d !important;
+  box-shadow: inset 0 1px 1px rgba(226, 255, 244, 0.3), inset 0 -5px 8px rgba(0, 20, 12, 0.7), 0 0 0 1px rgba(2, 39, 25, 0.86), 0 2px 4px rgba(0, 0, 0, 0.7) !important;
 }
 
