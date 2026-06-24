@@ -254,16 +254,13 @@ export default function MiddlePanel({
           0% {
             transform: translateX(-50%) scale(0.08) rotate(-28deg);
             opacity: 0;
-            filter: brightness(1.8) blur(3px);
           }
           42% {
             transform: translateX(-50%) scale(1.28) rotate(7deg);
             opacity: 1;
-            filter: brightness(1.35) blur(0);
           }
           68% {
             transform: translateX(-50%) scale(0.91) rotate(-3deg);
-            filter: brightness(1.08);
           }
           84% {
             transform: translateX(-50%) scale(1.08) rotate(1deg);
@@ -271,14 +268,7 @@ export default function MiddlePanel({
           100% {
             transform: translateX(-50%) scale(1) rotate(0);
             opacity: 1;
-            filter: brightness(1);
           }
-        }
-        @keyframes kenoBallPopGlow {
-          0% { opacity: 0; transform: scale(0.35); }
-          35% { opacity: 0.9; transform: scale(1.55); }
-          100% { opacity: 0; transform: scale(2.05); }
-        }
         @keyframes kenoBallFly {
           0% {
             transform: translate(-50%, 0) scale(1);
@@ -295,9 +285,6 @@ export default function MiddlePanel({
         }
         .animate-keno-pop {
           animation: kenoBallPop 0.48s cubic-bezier(0.2, 0.85, 0.25, 1.15) forwards;
-        }
-        .keno-ball-pop-glow {
-          animation: kenoBallPopGlow 0.55s ease-out forwards;
         }
         .animate-keno-fly {
           animation: kenoBallFly 0.415s cubic-bezier(0.25, 1, 0.5, 1) forwards;
@@ -459,9 +446,6 @@ export default function MiddlePanel({
                     }}
                     id={`active-ball-${currentBall}`}
                   >
-                    {animationPhase === 'visible' && (
-                      <div className="keno-ball-pop-glow absolute inset-0 rounded-full border-2 border-cyan-200/70 bg-cyan-300/20 shadow-[0_0_20px_rgba(103,232,249,0.85)]" />
-                    )}
                     {/* 3D Glossy background gradient inside */}
                     <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
                       highlightNumberSet.has(currentBall) ? 'keno-ball-green-glossy-lg' : 'keno-ball-blue-glossy-lg'
