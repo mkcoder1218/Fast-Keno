@@ -155,6 +155,7 @@ export default function App() {
     if (!round) return;
     const nextDrawId = String(round.drawId || round.roundNumber || round.id || '');
     if (!nextDrawId) return;
+    setCurrentRoundBackendId(round.id ? String(round.id) : '');
     const serverNowMs = getServerNowMs();
     const backendCloseMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
     const backendEndsMs = round?.endsAt ? new Date(round.endsAt).getTime() : NaN;
@@ -234,6 +235,7 @@ export default function App() {
   const [roundClosesAtMs, setRoundClosesAtMs] = useState<number>(() => getGlobalRoundState().targetMs);
   const [roundEndsAtMs, setRoundEndsAtMs] = useState<number>(() => getGlobalRoundState().targetMs + POP_SECONDS * 1000);
   const [roundPhase, setRoundPhase] = useState<'betting' | 'drawing' | 'closed'>('betting');
+  const [currentRoundBackendId, setCurrentRoundBackendId] = useState<string>('');
   const [countdown, setCountdown] = useState<number>(() => getGlobalRoundState().countdown);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [isPlacingBet, setIsPlacingBet] = useState<boolean>(false);
@@ -251,11 +253,14 @@ export default function App() {
         .filter((ticket) =>
           ticket.isMine === true &&
           ticket.status === 'Waiting' &&
-          String(ticket.drawId) === String(drawingDrawId || currentDrawId)
+          (
+            String(ticket.drawId) === String(drawingDrawId || currentDrawId) ||
+            (currentRoundBackendId !== '' && String(ticket.drawId) === currentRoundBackendId)
+          )
         )
         .flatMap((ticket) => ticket.selectedNumbers),
     ])),
-    [tickets, drawingDrawId, currentDrawId]
+    [tickets, drawingDrawId, currentDrawId, currentRoundBackendId]
   );
   const drawingHighlightNumbers = useMemo(
     () => activeTicketHighlightNumbers,
