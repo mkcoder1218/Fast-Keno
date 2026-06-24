@@ -262,10 +262,7 @@ export default function App() {
     ])),
     [tickets, drawingDrawId, currentDrawId, currentRoundBackendId]
   );
-  const drawingHighlightNumbers = useMemo(
-    () => activeTicketHighlightNumbers,
-    [isDrawing ? '' : activeTicketHighlightNumbers.join(',')]
-  );
+  const drawingHighlightNumbers = activeTicketHighlightNumbers;
   const ticketDrawHighlights = isDrawing ? visibleDrawnNumbers : [];
   const displayedDrawId = drawingDrawId || currentDrawId;
 
@@ -779,6 +776,7 @@ export default function App() {
     setInitialSettledNumbers([]);
     drawingDrawIdRef.current = null;
     setDrawingDrawId(null);
+    setCurrentRoundBackendId('');
     const nextDrawId = String(Number(completedDrawId) + 1);
     const nextWaitEndsAtMs = getServerNowMs() + WAIT_SECONDS * 1000;
     clientWaitDrawIdRef.current = nextDrawId;
