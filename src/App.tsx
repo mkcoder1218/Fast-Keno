@@ -1018,19 +1018,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#070d0e] bg-[radial-gradient(circle_at_center,rgba(5,38,32,0.45)_0%,rgba(8,12,14,1)_75%)] text-white relative flex flex-col items-center justify-start overflow-x-hidden font-sans">
-      {roundWinAmount !== null && (
-        <div className="fixed inset-x-0 top-[58px] z-[100] flex justify-center px-4 pointer-events-none">
-          <div className="min-w-[180px] rounded-lg border border-[#39d98a]/45 bg-[#10191a]/95 px-8 py-3 text-center shadow-[0_8px_30px_rgba(0,0,0,0.65),0_0_22px_rgba(57,217,138,0.16)] backdrop-blur">
-            <div className="text-[20px] font-black leading-none text-white">
-              {roundWinAmount > 0 ? 'YOU WIN' : 'NO WIN'}
-            </div>
-            <div className={`mt-1 font-mono text-[30px] font-black leading-none ${roundWinAmount > 0 ? 'text-[#39d98a]' : 'text-white/55'}`}>
-              {roundWinAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              <span className="ml-1 text-[11px] text-white/55">ETB</span>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Fast Keno mobile header */}
       {isMobile && (
@@ -1147,6 +1134,7 @@ export default function App() {
                 countdown={countdown}
                 drawId={displayedDrawId}
                 payTable={payTable}
+                roundWinAmount={roundWinAmount}
               />
             </div>
 
@@ -1192,6 +1180,7 @@ export default function App() {
                 countdown={countdown}
                 drawId={displayedDrawId}
                 payTable={payTable}
+                roundWinAmount={roundWinAmount}
               />
             </div>
 

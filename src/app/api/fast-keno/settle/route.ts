@@ -20,9 +20,13 @@ export async function POST(request: Request) {
         ? settledRounds.find((round: any) => String(round?.roundNumber || round?.id || '') === requestedDrawId) || null
         : settledRounds[settledRounds.length - 1];
       const mappedTickets = (ticketResult.tickets || []).map(mapBackendTicket);
-      const settledDrawId = latestDraw ? String(latestDraw?.roundNumber || latestDraw?.id || '') : requestedDrawId;
+      const settledDrawIds = new Set([
+        requestedDrawId,
+        latestDraw?.roundNumber ? String(latestDraw.roundNumber) : '',
+        latestDraw?.id ? String(latestDraw.id) : '',
+      ].filter(Boolean));
       const totalWinnings = mappedTickets
-        .filter((ticket: any) => ticket.drawId === settledDrawId && ticket.status === 'Won')
+        .filter((ticket: any) => settledDrawIds.has(String(ticket.drawId)) && ticket.status === 'Won')
         .reduce((sum: number, ticket: any) => sum + Number(ticket.winAmount || 0), 0);
 
       return NextResponse.json({

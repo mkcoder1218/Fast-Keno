@@ -24,6 +24,7 @@ interface MiddlePanelProps {
   countdown: number;
   drawId: string;
   payTable: PayTable;
+  roundWinAmount?: number | null;
 }
 
 export default function MiddlePanel({
@@ -44,6 +45,7 @@ export default function MiddlePanel({
   onDrawAnimationComplete,
   countdown,
   payTable,
+  roundWinAmount = null,
 }: MiddlePanelProps) {
   const [betInputValue, setBetInputValue] = React.useState(String(betAmount));
 
@@ -140,7 +142,7 @@ export default function MiddlePanel({
 
   // Sync incoming props to local animation queue
   React.useEffect(() => {
-    if (!isDrawing) {
+    if (!isDrawing && roundWinAmount === null) {
       updateSettledBalls([]);
       setCurrentBall(null);
       setAnimationPhase('idle');
@@ -174,7 +176,7 @@ export default function MiddlePanel({
     if (queueChanged) {
       processQueue();
     }
-  }, [activeDrawKey, initialSettledKey, isDrawing]);
+  }, [activeDrawKey, initialSettledKey, isDrawing, roundWinAmount]);
 
   const handleAdjustBet = (multiplier: number) => {
     playClickSound();
@@ -278,21 +280,21 @@ export default function MiddlePanel({
         }
       `}</style>
 
-      {isDrawing ? (
+      {isDrawing || (settledBalls.length === 20 && roundWinAmount !== null) ? (
         /* ==================== DRAWING MODE PANEL ==================== */
         (() => {
           const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-          const LARGE_BALL_SIZE = isMobile ? 54 : 64;
-          const SMALL_BALL_SIZE = isMobile ? 26 : 34;
-          const SLOT_GAP = isMobile ? 8 : 18;
+          const LARGE_BALL_SIZE = isMobile ? 72 : 84;
+          const SMALL_BALL_SIZE = isMobile ? 31 : 40;
+          const SLOT_GAP = isMobile ? 5 : 12;
           const SLOT_STEP = SMALL_BALL_SIZE + SLOT_GAP;
 
           const BALLS_PER_ROW = 10;
           const ROW_WIDTH = BALLS_PER_ROW * SMALL_BALL_SIZE + (BALLS_PER_ROW - 1) * SLOT_GAP;
 
-          const Y_CENTER_BALL = isMobile ? 18 : 28;
-          const Y_ROW_1 = isMobile ? 92 : 110;
-          const Y_ROW_2 = isMobile ? 128 : 156;
+          const Y_CENTER_BALL = isMobile ? 26 : 34;
+          const Y_ROW_1 = isMobile ? 108 : 126;
+          const Y_ROW_2 = isMobile ? 143 : 171;
 
           // Dynamic row-splitting per user requirements:
           // The first 10 lands occupy the top row initially.
@@ -309,7 +311,7 @@ export default function MiddlePanel({
 
           return (
             <div 
-              className="rounded-[5px] h-[170px] md:h-[205px] relative overflow-hidden border border-[#2d3a3c]/40 flex flex-col justify-start" 
+              className="rounded-[5px] h-[182px] md:h-[220px] relative overflow-hidden border border-[#2d3a3c]/40 flex flex-col justify-start"
               style={{ backgroundColor: '#151c1d' }}
               id="drawing-mode-panel"
             >
@@ -350,6 +352,17 @@ export default function MiddlePanel({
                 <span className="text-[#39d98a] font-normal mx-1">/</span>
                 <span className="text-white/45 tracking-[0.04em]">20</span>
               </div>
+
+              {settledBalls.length === 20 && roundWinAmount !== null && (
+                <div className="absolute left-1/2 top-[14px] md:top-[18px] z-[55] -translate-x-1/2 text-center">
+                  <div className="text-[18px] md:text-[22px] font-black leading-none text-white">
+                    {roundWinAmount > 0 ? 'YOU WIN' : 'NO WIN'}
+                  </div>
+                  <div className={`mt-1 font-mono text-[28px] md:text-[34px] font-black leading-none ${roundWinAmount > 0 ? 'text-[#39d98a]' : 'text-white/55'}`}>
+                    {roundWinAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+              )}
 
               {/* Radar: concentric broken circular arcs & radial green glow centred exactly behind big current ball */}
               <div 
@@ -393,7 +406,7 @@ export default function MiddlePanel({
                     style={{ 
                       width: `${LARGE_BALL_SIZE}px`,
                       height: `${LARGE_BALL_SIZE}px`,
-                      fontSize: isMobile ? '20px' : '26px',
+                      fontSize: isMobile ? '29px' : '36px',
                       left: '50%',
                       top: '0px',
                       textShadow: '0 1.5px 3px rgba(0,0,0,0.85)',
@@ -459,7 +472,7 @@ export default function MiddlePanel({
                         className="text-[#ffffff] font-mono font-black leading-none text-center select-none"
                         style={{ 
                           textShadow: '0 1px 2px rgba(0,0,0,0.85)',
-                          fontSize: isMobile ? '13px' : '15px'
+                          fontSize: isMobile ? '15px' : '18px'
                         }}
                       >
                         {ballVal}
@@ -503,7 +516,7 @@ export default function MiddlePanel({
                         className="text-[#ffffff] font-mono font-black leading-none text-center select-none"
                         style={{ 
                           textShadow: '0 1px 2px rgba(0,0,0,0.85)',
-                          fontSize: isMobile ? '13px' : '15px'
+                          fontSize: isMobile ? '15px' : '18px'
                         }}
                       >
                         {ballVal}
