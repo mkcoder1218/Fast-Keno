@@ -10,10 +10,14 @@ export async function POST(request: Request) {
     if (!authToken) {
       return NextResponse.json({ ok: false, message: 'King 5 login required.' }, { status: 401 });
     }
-    const [settledResult, ticketResult] = await Promise.all([
-      backendRequest('/games/fast-keno/settle', authToken, { method: 'POST', body: JSON.stringify({}) }),
-      backendRequest('/games/fast-keno/tickets?limit=50', authToken),
-    ]);
+    const settledResult = await backendRequest(
+      '/games/fast-keno/settle',
+      authToken,
+      { method: 'POST', body: JSON.stringify({}) }
+    );
+    // Fetch tickets only after settlement commits, otherwise winning tickets can
+    // still arrive as "Waiting" and suppress the result message.
+    const ticketResult = await backendRequest('/games/fast-keno/tickets?limit=50', authToken);
       const settledRounds = settledResult.settled || [];
       const requestedDrawId = body?.drawId ? String(body.drawId) : '';
       const latestDraw = requestedDrawId

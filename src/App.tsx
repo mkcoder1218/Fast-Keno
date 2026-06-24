@@ -677,10 +677,24 @@ export default function App() {
     });
 
     const serviceResult = settledRoundRef.current;
+    const completedRoundIds = new Set([
+      String(completedDrawId),
+      currentRoundBackendId,
+    ].filter(Boolean));
     let totalWinnings = Number(serviceResult?.totalWinnings || 0);
     let totalMatchedTickets = Array.isArray(serviceResult?.tickets)
-      ? serviceResult.tickets.filter((t: Ticket) => t.drawId === completedDrawId).length
+      ? serviceResult.tickets.filter((t: Ticket) => completedRoundIds.has(String(t.drawId))).length
       : 0;
+
+    if (Array.isArray(serviceResult?.tickets)) {
+      const settledTicketWinnings = serviceResult.tickets
+        .filter((ticket: Ticket) =>
+          completedRoundIds.has(String(ticket.drawId)) &&
+          ticket.status === 'Won'
+        )
+        .reduce((sum: number, ticket: Ticket) => sum + Number(ticket.winAmount || 0), 0);
+      totalWinnings = Math.max(totalWinnings, settledTicketWinnings);
+    }
 
     if (serviceResult) {
       const nextBalance = Number(serviceResult.balance);
@@ -711,7 +725,11 @@ export default function App() {
     } else {
       setTickets((prevTickets) => {
         return prevTickets.map((t) => {
-          if (t.status !== 'Waiting' || t.drawId !== completedDrawId) return t;
+          if (
+            t.isMine !== true ||
+            t.status !== 'Waiting' ||
+            !completedRoundIds.has(String(t.drawId))
+          ) return t;
 
           const matchedNumbers = t.selectedNumbers.filter((n) => combination.includes(n));
           const matchedCount = matchedNumbers.length;
@@ -736,8 +754,9 @@ export default function App() {
       }
     }
 
-    setRoundWinAmount(totalMatchedTickets > 0 ? totalWinnings : null);
-    if (totalMatchedTickets > 0) {
+    const shouldShowRoundResult = totalWinnings > 0 || totalMatchedTickets > 0;
+    setRoundWinAmount(shouldShowRoundResult ? totalWinnings : null);
+    if (shouldShowRoundResult) {
       window.setTimeout(() => setRoundWinAmount(null), 6000);
     }
 
