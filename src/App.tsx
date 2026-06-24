@@ -12,7 +12,6 @@ import RightPanel from './components/RightPanel';
 import { Ticket, DrawResult, Leader, HotColdNumber } from './types';
 import { 
   INITIAL_DRAWS, 
-  INITIAL_TICKETS, 
   INITIAL_LEADERS, 
   HOT_NUMBERS, 
   COLD_NUMBERS,
@@ -111,7 +110,7 @@ export default function App() {
   // Gameplay States
   const [balance, setBalance] = useState<number>(Number.isFinite(launchBalance) ? launchBalance : 90.37);
   const [userId] = useState<string>(launchUserId);
-  const [tickets, setTickets] = useState<Ticket[]>(INITIAL_TICKETS);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [drawResults, setDrawResults] = useState<DrawResult[]>(INITIAL_DRAWS);
   const [leaders, setLeaders] = useState<Leader[]>(INITIAL_LEADERS);
   const [payTable, setPayTable] = useState<PayTable>(DEFAULT_PAY_TABLE);
@@ -249,10 +248,14 @@ export default function App() {
   const activeTicketHighlightNumbers = useMemo(
     () => Array.from(new Set([
       ...tickets
-        .filter((ticket) => ticket.isMine === true && ticket.status === 'Waiting')
+        .filter((ticket) =>
+          ticket.isMine === true &&
+          ticket.status === 'Waiting' &&
+          String(ticket.drawId) === String(drawingDrawId || currentDrawId)
+        )
         .flatMap((ticket) => ticket.selectedNumbers),
     ])),
-    [tickets]
+    [tickets, drawingDrawId, currentDrawId]
   );
   const drawingHighlightNumbers = useMemo(
     () => activeTicketHighlightNumbers,
