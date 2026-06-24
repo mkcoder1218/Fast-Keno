@@ -12,6 +12,7 @@ interface MiddlePanelProps {
   onBetAmountChange: (amount: number) => void;
   onPlaceBet: () => void;
   isDrawing: boolean;
+  isRoundClosed?: boolean;
   isPlacingBet?: boolean;
   activeDrawnNumbers: number[];
   initialSettledNumbers?: number[];
@@ -34,6 +35,7 @@ export default function MiddlePanel({
   onBetAmountChange,
   onPlaceBet,
   isDrawing,
+  isRoundClosed = false,
   isPlacingBet = false,
   activeDrawnNumbers,
   initialSettledNumbers = [],
@@ -277,7 +279,15 @@ export default function MiddlePanel({
         }
       `}</style>
 
-      {isDrawing ? (
+      {isRoundClosed ? (
+        <div className="rounded-[5px] h-[170px] md:h-[205px] relative overflow-hidden border border-red-500/35 bg-[radial-gradient(circle_at_center,rgba(127,29,29,0.28),rgba(28,12,14,0.98)_72%)] flex flex-col items-center justify-center text-center">
+          <div className="text-[22px] md:text-[27px] font-black tracking-wide text-red-300">ROUND CLOSED</div>
+          <div className="mt-2 text-[12px] md:text-[14px] font-bold tracking-widest text-white/55">NEXT ROUND STARTING</div>
+          <div className="mt-2 font-mono text-[30px] md:text-[38px] font-black text-red-400" style={{ textShadow: '0 0 14px rgba(239,68,68,0.45)' }}>
+            {formatTimer(countdown)}
+          </div>
+        </div>
+      ) : isDrawing ? (
         /* ==================== DRAWING MODE PANEL ==================== */
         (() => {
           const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;

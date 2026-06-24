@@ -156,17 +156,17 @@ export default function App() {
     if (!round) return;
     const nextDrawId = String(round.drawId || round.roundNumber || round.id || '');
     if (!nextDrawId) return;
-    const backendPhase = String(round.phase || '').toLowerCase();
+    const serverNowMs = getServerNowMs();
     const backendCloseMs = round?.closesAt ? new Date(round.closesAt).getTime() : NaN;
     const backendEndsMs = round?.endsAt ? new Date(round.endsAt).getTime() : NaN;
-    const backendSeconds = Number(round.waitSecondsRemaining ?? round.secondsRemaining);
 
-    if (backendPhase === 'waiting' && Number.isFinite(backendCloseMs) && backendCloseMs > getServerNowMs()) {
-      clientWaitDrawIdRef.current = nextDrawId;
-      clientWaitEndsAtRef.current = backendCloseMs;
+    if (Number.isFinite(backendCloseMs) && serverNowMs < backendCloseMs) {
+      participatedRoundIdRef.current = nextDrawId;
       setCurrentDrawId(nextDrawId);
       setRoundClosesAtMs(backendCloseMs);
-      setCountdown(Number.isFinite(backendSeconds) ? Math.max(0, Math.min(backendSeconds, WAIT_SECONDS)) : getSecondsUntil(backendCloseMs));
+      setRoundEndsAtMs(Number.isFinite(backendEndsMs) ? backendEndsMs : backendCloseMs + POP_SECONDS * 1000);
+      setRoundPhase('betting');
+      setCountdown(Math.max(0, Math.ceil((backendCloseMs - serverNowMs) / 1000)));
       if (isDrawing) {
         setIsDrawing(false);
         setDrawingDrawId(null);
@@ -175,45 +175,28 @@ export default function App() {
       return;
     }
 
-    if (backendPhase === 'drawing' && !isDrawing) {
-      const targetMs = Number.isFinite(backendEndsMs) ? backendEndsMs : getServerNowMs() + POP_SECONDS * 1000;
-      void triggerLiveDrawing(nextDrawId, undefined, targetMs);
-      return;
-    }
-
-    const globalState = getGlobalRoundState();
-    const globalDrawId = String(globalState.cycleIndex);
-
-    if (globalState.isDrawingPhase) {
-      const drawingCountdownTargetMs = globalState.targetMs;
-      setRoundClosesAtMs(drawingCountdownTargetMs);
-      setCountdown(getSecondsUntil(drawingCountdownTargetMs));
-      if (!isDrawing && globalDrawId !== drawingDrawIdRef.current) {
-        void triggerLiveDrawing(globalDrawId, globalState.elapsedCycleMs, drawingCountdownTargetMs);
+    if (Number.isFinite(backendCloseMs) && Number.isFinite(backendEndsMs) && serverNowMs < backendEndsMs) {
+      setCurrentDrawId(nextDrawId);
+      setRoundEndsAtMs(backendEndsMs);
+      setCountdown(Math.max(0, Math.ceil((backendEndsMs - serverNowMs) / 1000)));
+      if (participatedRoundIdRef.current === nextDrawId) {
+        setRoundPhase('drawing');
+        if (!isDrawing && drawingDrawIdRef.current !== nextDrawId) {
+          const elapsedDrawMs = Math.max(0, serverNowMs - backendCloseMs);
+          void triggerLiveDrawing(nextDrawId, elapsedDrawMs, backendEndsMs);
+        }
+      } else {
+        setRoundPhase('closed');
+        setIsDrawing(false);
       }
       return;
     }
 
-    const nextDrawIdForWait = String(globalState.cycleIndex + 1);
-    const nextWaitEndsAtMs = globalState.targetMs;
-
-    if (
-      clientWaitDrawIdRef.current === nextDrawIdForWait &&
-      clientWaitEndsAtRef.current > getServerNowMs() &&
-      !isDrawing
-    ) {
-      setCurrentDrawId(nextDrawIdForWait);
-      setRoundClosesAtMs(clientWaitEndsAtRef.current);
-      setCountdown(getSecondsUntil(clientWaitEndsAtRef.current));
-      return;
-    }
-
-    const nextCountdown = getSecondsUntil(nextWaitEndsAtMs);
-    clientWaitDrawIdRef.current = nextDrawIdForWait;
-    clientWaitEndsAtRef.current = nextWaitEndsAtMs;
-    setCurrentDrawId(nextDrawIdForWait);
-    setRoundClosesAtMs(nextWaitEndsAtMs);
-    setCountdown(nextCountdown);
+    // The received backend round has ended. Keep it closed until the next backend refresh arrives.
+    setCurrentDrawId(nextDrawId);
+    setRoundEndsAtMs(Number.isFinite(backendEndsMs) ? backendEndsMs : serverNowMs);
+    setRoundPhase('closed');
+    setCountdown(0);
   };
   
   // Selection States
@@ -250,6 +233,8 @@ export default function App() {
 
   // Timer & Ball Extraction State
   const [roundClosesAtMs, setRoundClosesAtMs] = useState<number>(() => getGlobalRoundState().targetMs);
+  const [roundEndsAtMs, setRoundEndsAtMs] = useState<number>(() => getGlobalRoundState().targetMs + POP_SECONDS * 1000);
+  const [roundPhase, setRoundPhase] = useState<'betting' | 'drawing' | 'closed'>('betting');
   const [countdown, setCountdown] = useState<number>(() => getGlobalRoundState().countdown);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [isPlacingBet, setIsPlacingBet] = useState<boolean>(false);
@@ -280,6 +265,7 @@ export default function App() {
   const ballTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentDrawIdRef = useRef<string>(initialDrawId);
   const drawingDrawIdRef = useRef<string | null>(null);
+  const participatedRoundIdRef = useRef<string | null>(null);
   const clientWaitDrawIdRef = useRef<string | null>(null);
   const clientWaitEndsAtRef = useRef<number>(0);
   const settledRoundRef = useRef<any>(null);
@@ -530,24 +516,6 @@ export default function App() {
           if (round?.drawId || round?.roundNumber || round?.id) {
             syncRoundPhase(round);
           }
-          if (round?.secondsRemaining !== undefined) {
-            const fallbackDrawId = String(round.drawId || round.roundNumber || round.id || '');
-            const shouldKeepClientWait =
-              fallbackDrawId &&
-              clientWaitDrawIdRef.current === fallbackDrawId &&
-              clientWaitEndsAtRef.current > getServerNowMs();
-            if (shouldKeepClientWait) {
-              setRoundClosesAtMs(clientWaitEndsAtRef.current);
-              setCountdown(getSecondsUntil(clientWaitEndsAtRef.current));
-            } else {
-              const fallbackCloseMs = getServerNowMs() + Math.min(
-                Math.max(0, Number(round.secondsRemaining || 0)),
-                WAIT_SECONDS
-              ) * 1000;
-              setRoundClosesAtMs(fallbackCloseMs);
-              setCountdown(getSecondsUntil(fallbackCloseMs));
-            }
-          }
           if (payload.balance !== undefined && payload.balance !== null) {
             const nextBalance = Number(payload.balance);
             if (Number.isFinite(nextBalance)) {
@@ -585,25 +553,34 @@ export default function App() {
   // Countdown timer ticking trigger
   useEffect(() => {
     const timer = setInterval(() => {
-      const nextSeconds = getSecondsUntil(roundClosesAtMs);
+      const targetMs = roundPhase === 'betting' ? roundClosesAtMs : roundEndsAtMs;
+      const nextSeconds = getSecondsUntil(targetMs);
       setCountdown(nextSeconds);
 
-      if (!isDrawing && nextSeconds <= 0) {
-        clearInterval(timer);
-        clientWaitDrawIdRef.current = null;
-        clientWaitEndsAtRef.current = 0;
-        triggerLiveDrawing(currentDrawIdRef.current);
+      if (roundPhase === 'betting' && nextSeconds <= 0) {
+        if (participatedRoundIdRef.current === currentDrawIdRef.current) {
+          setRoundPhase('drawing');
+          void triggerLiveDrawing(currentDrawIdRef.current, 0, roundEndsAtMs);
+        } else {
+          setRoundPhase('closed');
+        }
         return;
       }
 
-      if (!isDrawing && nextSeconds <= 6) {
+      if (roundPhase === 'closed' && nextSeconds <= 0) {
+        void refreshCurrentRound();
+        return;
+      }
+
+      if (roundPhase === 'betting' && nextSeconds <= 6) {
         playTickSound();
       }
     }, 1000);
 
-    setCountdown(getSecondsUntil(roundClosesAtMs));
+    const targetMs = roundPhase === 'betting' ? roundClosesAtMs : roundEndsAtMs;
+    setCountdown(getSecondsUntil(targetMs));
     return () => clearInterval(timer);
-  }, [isDrawing, currentDrawId, roundClosesAtMs, serverTimeOffsetMs]);
+  }, [roundPhase, currentDrawId, roundClosesAtMs, roundEndsAtMs, serverTimeOffsetMs]);
 
   // Performs 20 numbers drawing sequentially
   const triggerLiveDrawing = async (
@@ -617,6 +594,7 @@ export default function App() {
     }
     const roundDrawId = String(drawIdToPlay || currentDrawIdRef.current);
     drawingDrawIdRef.current = roundDrawId;
+    setRoundPhase('drawing');
     setIsDrawing(true);
     setDrawingDrawId(roundDrawId);
     setActiveDrawnNumbers([]);
@@ -781,6 +759,7 @@ export default function App() {
     setCurrentDrawId(nextDrawId);
     setRoundClosesAtMs(nextWaitEndsAtMs);
     setCountdown(WAIT_SECONDS);
+    setRoundPhase('betting');
     ensureOtherPlayerTickets(nextDrawId, 5);
     setIsDrawing(false);
 
@@ -865,7 +844,7 @@ export default function App() {
   };
 
   const handleToggleNumber = (num: number) => {
-    if (isDrawing) {
+    if (roundPhase !== 'betting') {
       triggerToast('⚠️ Selections locked during draw phase!', 'error');
       return;
     }
@@ -890,7 +869,7 @@ export default function App() {
 
   const handleAutoPick = (count: number) => {
     playClickSound();
-    if (isDrawing) return;
+    if (roundPhase !== 'betting') return;
     const randoms = generateRandomCombination(count, 1, 80);
     setSelectedNumbers(randoms);
     triggerToast(`⚡ Selected ${count} numbers automatically!`, 'info');
@@ -922,7 +901,10 @@ export default function App() {
   };
 
   const handlePlaceBet = async () => {
-    if (isDrawing || isPlacingBet) return;
+    if (roundPhase !== 'betting' || getServerNowMs() >= roundClosesAtMs || isPlacingBet) {
+      triggerToast('Round is closed. Please wait for the next round.', 'error');
+      return;
+    }
     if (selectedNumbers.length === 0) {
       triggerToast('⚠️ Select some numbers to bet on first!', 'info');
       return;
@@ -1153,6 +1135,7 @@ export default function App() {
                 onBetAmountChange={setBetAmount}
                 onPlaceBet={handlePlaceBet}
                 isDrawing={isDrawing}
+                isRoundClosed={roundPhase === 'closed'}
                 isPlacingBet={isPlacingBet}
                 activeDrawnNumbers={activeDrawnNumbers}
                 initialSettledNumbers={initialSettledNumbers}
@@ -1197,6 +1180,7 @@ export default function App() {
                 onBetAmountChange={setBetAmount}
                 onPlaceBet={handlePlaceBet}
                 isDrawing={isDrawing}
+                isRoundClosed={roundPhase === 'closed'}
                 isPlacingBet={isPlacingBet}
                 activeDrawnNumbers={activeDrawnNumbers}
                 initialSettledNumbers={initialSettledNumbers}
