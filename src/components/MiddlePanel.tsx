@@ -237,12 +237,11 @@ export default function MiddlePanel({
     const remainder = (secs % 60).toString().padStart(2, '0');
     return `${mins} : ${remainder}`;
   };
-  const timerIsOverMinute = countdown > 60;
-  const timerColor = timerIsOverMinute ? '#ff4b4b' : '#f6ffff';
-  const timerGlow = timerIsOverMinute
+  const timerColor = isRoundClosed ? '#ff5b64' : '#f6ffff';
+  const timerGlow = isRoundClosed
     ? '0 0 2px rgba(255,255,255,0.85), 0 0 5px rgba(255,75,75,0.95), 0 0 14px rgba(239,68,68,0.7), 0 1px 0 rgba(0,0,0,0.95)'
     : '0 0 2px rgba(255,255,255,0.95), 0 0 5px rgba(127,247,255,0.9), 0 0 12px rgba(34,211,238,0.52), 0 1px 0 rgba(0,0,0,0.95)';
-  const timerGlowColor = timerIsOverMinute ? '#ff4b4b' : '#7ff7ff';
+  const timerGlowColor = isRoundClosed ? '#ff4b4b' : '#7ff7ff';
 
   return (
     <div className="flex flex-col h-full text-zinc-100 select-none uppercase" id="middle-panel">
@@ -279,15 +278,7 @@ export default function MiddlePanel({
         }
       `}</style>
 
-      {isRoundClosed ? (
-        <div className="rounded-[5px] h-[170px] md:h-[205px] relative overflow-hidden border border-red-500/35 bg-[radial-gradient(circle_at_center,rgba(127,29,29,0.28),rgba(28,12,14,0.98)_72%)] flex flex-col items-center justify-center text-center">
-          <div className="text-[22px] md:text-[27px] font-black tracking-wide text-red-300">ROUND CLOSED</div>
-          <div className="mt-2 text-[12px] md:text-[14px] font-bold tracking-widest text-white/55">NEXT ROUND STARTING</div>
-          <div className="mt-2 font-mono text-[30px] md:text-[38px] font-black text-red-400" style={{ textShadow: '0 0 14px rgba(239,68,68,0.45)' }}>
-            {formatTimer(countdown)}
-          </div>
-        </div>
-      ) : isDrawing ? (
+      {isDrawing ? (
         /* ==================== DRAWING MODE PANEL ==================== */
         (() => {
           const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -706,9 +697,9 @@ export default function MiddlePanel({
                 <button
                   key={num}
                   onClick={() => onToggleNumber(num)}
-                  disabled={isDrawing}
+                  disabled={isDrawing || isRoundClosed}
                   className={`h-[clamp(34px,8.4vw,42px)] md:h-[55px] flex flex-col items-center justify-center relative overflow-hidden select-none outline-none rounded-[2px] transition-all ${
-                    isDrawing ? 'cursor-not-allowed' : 'cursor-pointer'
+                    isDrawing || isRoundClosed ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
                   } ${
                     isDrawn && isSelected
                       ? 'bg-[#4ea06f] text-white font-black scale-[1.01] border border-emerald-300/40 z-[3]'
@@ -740,7 +731,7 @@ export default function MiddlePanel({
                 {/* Minus Button */}
                 <button
                   onClick={() => handleIncrement(-2)}
-                  disabled={betAmount <= 5}
+                  disabled={isRoundClosed || betAmount <= 5}
                   className="w-8 h-8 rounded text-white text-[18px] font-bold hover:bg-[#2c3d44]/50 disabled:opacity-20 cursor-pointer active:scale-95 flex items-center justify-center transition-colors select-none"
                 >
                   -
@@ -753,6 +744,7 @@ export default function MiddlePanel({
                   max={5000}
                   step={2}
                   value={betInputValue}
+                  disabled={isRoundClosed}
                   onChange={(event) => handleBetInputChange(event.target.value)}
                   onBlur={(event) => commitBetInputValue(event.target.value)}
                   onKeyDown={(event) => {
@@ -767,7 +759,7 @@ export default function MiddlePanel({
                 {/* Plus Button */}
                 <button
                   onClick={() => handleIncrement(2)}
-                  disabled={betAmount >= 5000}
+                  disabled={isRoundClosed || betAmount >= 5000}
                   className="w-8 h-8 rounded text-white text-[18px] font-bold hover:bg-[#2c3d44]/50 disabled:opacity-20 cursor-pointer active:scale-95 flex items-center justify-center transition-colors select-none"
                 >
                   +
@@ -777,6 +769,7 @@ export default function MiddlePanel({
               {/* X2 multiplier button */}
               <button
                 onClick={() => handleAdjustBet(2)}
+                disabled={isRoundClosed}
                 className="h-9 px-3 bg-[#1a2528] hover:bg-[#233237] text-[#39d98a] font-bold text-[11px] rounded border border-[#2e3e43]/40 cursor-pointer transition-colors active:scale-95 flex items-center justify-center shrink-0"
               >
                 X2
@@ -785,6 +778,7 @@ export default function MiddlePanel({
               {/* MAX Stake Button */}
               <button
                 onClick={setMaxBet}
+                disabled={isRoundClosed}
                 className="h-9 px-3 bg-[#1a2528] hover:bg-[#233237] text-[#39d98a] font-bold text-[11px] rounded border border-[#2e3e43]/40 cursor-pointer transition-colors active:scale-95 flex items-center justify-center shrink-0"
               >
                 MAX
@@ -796,7 +790,7 @@ export default function MiddlePanel({
                 onClick={() => {
                   onPlaceBet();
                 }}
-                disabled={isDrawing || selectedNumbers.length === 0}
+                disabled={isDrawing || isRoundClosed || selectedNumbers.length === 0}
                 className={`w-full md:flex-1 h-9 rounded font-extrabold tracking-widest text-[13px] uppercase cursor-pointer transition-all active:scale-[0.98] flex items-center justify-center outline-none ${
                   selectedNumbers.length === 0
                   ? 'bg-[#1b2528] text-[#4a585c] cursor-not-allowed border border-[#2e3e43]/20'
@@ -804,7 +798,7 @@ export default function MiddlePanel({
                 }`}
                 id="bet-submit-button"
               >
-              {isDrawing ? 'Drawing' : 'BET'}
+              {isDrawing ? 'Drawing' : isRoundClosed ? 'Round closed' : 'BET'}
             </button>
 
           </div>
