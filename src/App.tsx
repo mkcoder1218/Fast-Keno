@@ -218,7 +218,7 @@ export default function App() {
   
   // Selection States
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
-  const [betAmount, setBetAmount] = useState<number>(2);
+  const [betAmount, setBetAmount] = useState<number>(5);
   const [activeNavItem, setActiveNavItem] = useState<string>('GAMES');
   const [isSocketConnected, setIsSocketConnected] = useState<boolean>(false);
 
@@ -922,6 +922,11 @@ export default function App() {
       return;
     }
 
+    if (betAmount < 5) {
+      triggerToast('Minimum bet amount is 5 ETB.', 'error');
+      return;
+    }
+
     if (balance < betAmount) {
       triggerToast('❌ Insufficient balance! Click the top funds pill to reload sandbox funds.', 'error');
       return;
@@ -1010,11 +1015,24 @@ export default function App() {
     return <div className="min-h-screen bg-[#020403]" suppressHydrationWarning />;
   }
 
+  if (!launchAuthToken) {
+    return (
+      <div className="min-h-screen bg-[#070d0e] text-white flex items-center justify-center px-6">
+        <div className="max-w-md rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center">
+          <h1 className="text-lg font-black uppercase tracking-wide text-red-200">King 5 login required</h1>
+          <p className="mt-2 text-sm text-red-100/75">
+            Fast Keno can only be opened by a logged-in King 5 user.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#070d0e] bg-[radial-gradient(circle_at_center,rgba(5,38,32,0.45)_0%,rgba(8,12,14,1)_75%)] text-white relative flex flex-col items-center justify-start overflow-x-hidden font-sans">
       
-      {/* Top 45px Mobile header (hidden when King5 provides the wallet/header) */}
-      {isMobile && !isEmbeddedInKing5 && (
+      {/* Fast Keno mobile header */}
+      {isMobile && (
         <div className="w-full h-[45px] bg-[#11191a] border-b border-[#1e2a2c] flex items-center justify-between gap-2 px-3 shrink-0 z-30" id="mobile-top-header">
           {/* FASTKENO logo left */}
           <div className="flex min-w-0 items-center">

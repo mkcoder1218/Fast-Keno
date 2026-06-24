@@ -216,8 +216,8 @@ export const fastKenoService = {
     const selectedNumbers = normalizeNumbers(input.selectedNumbers);
     const betAmount = money(Number(input.betAmount));
 
-    if (!Number.isFinite(betAmount) || betAmount <= 0) {
-      throw new Error('Bet amount must be greater than zero.');
+    if (!Number.isFinite(betAmount) || betAmount < 5) {
+      throw new Error('Minimum bet amount is 5 ETB.');
     }
 
     const state = readState();

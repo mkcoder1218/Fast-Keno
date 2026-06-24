@@ -176,21 +176,21 @@ export default function MiddlePanel({
 
   const handleAdjustBet = (multiplier: number) => {
     playClickSound();
-    const newBet = Math.max(1, Math.min(5000, Math.round(betAmount * multiplier)));
+    const newBet = Math.max(5, Math.min(5000, Math.round(betAmount * multiplier)));
     onBetAmountChange(newBet);
   };
 
   const handleIncrement = (amount: number) => {
     playClickSound();
-    const newBet = Math.max(1, Math.min(5000, betAmount + amount));
+    const newBet = Math.max(5, Math.min(5000, betAmount + amount));
     onBetAmountChange(newBet);
   };
 
   const commitBetInputValue = (value: string) => {
     const numericValue = Number(value);
     const nextBet = Number.isFinite(numericValue)
-      ? Math.max(1, Math.min(5000, Math.round(numericValue)))
-      : 1;
+      ? Math.max(5, Math.min(5000, Math.round(numericValue)))
+      : 5;
     setBetInputValue(String(nextBet));
     onBetAmountChange(nextBet);
   };
@@ -730,7 +730,7 @@ export default function MiddlePanel({
                 {/* Minus Button */}
                 <button
                   onClick={() => handleIncrement(-2)}
-                  disabled={betAmount <= 1}
+                  disabled={betAmount <= 5}
                   className="w-8 h-8 rounded text-white text-[18px] font-bold hover:bg-[#2c3d44]/50 disabled:opacity-20 cursor-pointer active:scale-95 flex items-center justify-center transition-colors select-none"
                 >
                   -
@@ -739,7 +739,7 @@ export default function MiddlePanel({
                 {/* Stake input */}
                 <input
                   type="number"
-                  min={1}
+                  min={5}
                   max={5000}
                   step={2}
                   value={betInputValue}

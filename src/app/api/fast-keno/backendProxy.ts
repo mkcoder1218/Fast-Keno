@@ -2,8 +2,7 @@ const DEFAULT_BACKEND_API_BASE = 'https://api.king5.bet/api';
 
 export function getBackendApiBase(value?: string | null) {
   const raw = String(
-    value ||
-      process.env.FAST_KENO_BACKEND_API_BASE_URL ||
+    process.env.FAST_KENO_BACKEND_API_BASE_URL ||
       process.env.BACKEND_API_BASE_URL ||
       DEFAULT_BACKEND_API_BASE
   ).trim();
@@ -12,7 +11,7 @@ export function getBackendApiBase(value?: string | null) {
 }
 
 export async function backendRequest(path: string, token: string, init: RequestInit = {}, backendApiBase?: string | null) {
-  const res = await fetch(`${getBackendApiBase(backendApiBase)}${path}`, {
+  const res = await fetch(`${getBackendApiBase()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
