@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Volume2, VolumeX, Maximize, Star, Check, BarChart3, Crown, Table2 } from 'lucide-react';
-import { DrawResult, Leader, HotColdNumber, Ticket } from '../types';
+import { Volume2, VolumeX, Maximize, Star, Check, BarChart3, Crown } from 'lucide-react';
+import { DrawResult, Leader, HotColdNumber } from '../types';
 import { toggleMuted, getMutedState, playClickSound } from '../audio';
 
 interface RightPanelProps {
@@ -8,46 +8,15 @@ interface RightPanelProps {
   leaders: Leader[];
   hotNumbers: HotColdNumber[];
   coldNumbers: HotColdNumber[];
-  tickets?: Ticket[];
   isDrawing: boolean;
   activeDrawnNumbers: number[];
   drawId: string;
   onSelectHistoricCombination: (combination: number[]) => void;
-  forceTab?: 'RESULTS' | 'STATISTICS' | 'LEADERS' | 'BETS';
+  forceTab?: 'RESULTS' | 'STATISTICS' | 'LEADERS';
   hideHeaderAndQuickMenu?: boolean;
 }
 
-type MenuTabType = 'RESULTS' | 'STATISTICS' | 'LEADERS' | 'BETS';
-
-const getTicketTimeKey = (ticket: Ticket) => {
-  if (Number.isFinite(ticket.receivedAt)) {
-    return Number(ticket.receivedAt);
-  }
-
-  const timestamp = String(ticket.timestamp || '');
-  const timeParts = timestamp.match(/(\d{1,2}):(\d{2}):(\d{2})/);
-  if (timeParts) {
-    const [, hours, minutes, seconds] = timeParts;
-    return Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
-  }
-
-  const idTime = String(ticket.id || '').match(/(\d{10,})/);
-  return idTime ? Number(idTime[1]) : 0;
-};
-
-const newestTicketFirst = (a: Ticket, b: Ticket) => {
-  const justPlacedDiff = Number(b.justPlacedAt || 0) - Number(a.justPlacedAt || 0);
-  if (justPlacedDiff !== 0) return justPlacedDiff;
-  const timeDiff = getTicketTimeKey(b) - getTicketTimeKey(a);
-  if (timeDiff !== 0) return timeDiff;
-  return String(b.id || '').localeCompare(String(a.id || ''));
-};
-
-const formatMoney = (value: number) =>
-  Number(value || 0).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+type MenuTabType = 'RESULTS' | 'STATISTICS' | 'LEADERS';
 
 const ShieldCheckTiny = () => (
   <svg viewBox="0 0 24 24" fill="none" className="w-[11px] h-[11px] text-[#39d98a] shrink-0" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
@@ -61,7 +30,6 @@ export default function RightPanel({
   leaders,
   hotNumbers,
   coldNumbers,
-  tickets = [],
   isDrawing,
   activeDrawnNumbers,
   drawId,
@@ -79,7 +47,6 @@ export default function RightPanel({
 
   const [soundMuted, setSoundMuted] = useState(getMutedState());
   const [isFavorited, setIsFavorited] = useState(false);
-  const sortedTickets = [...tickets].sort(newestTicketFirst);
 
   const handleSoundToggle = () => {
     const isMuted = toggleMuted();
@@ -156,21 +123,6 @@ export default function RightPanel({
             >
               <BarChart3 className="w-[11px] h-[11px] stroke-[2.5]" />
               STATISTICS
-            </button>
-
-            <button
-              onClick={() => {
-                playClickSound();
-                setActiveMenuTab('BETS');
-              }}
-              className={`flex items-center gap-1 font-extrabold tracking-wide transition-colors cursor-pointer shrink-0 pb-0.5 border-b-2 ${
-                activeMenuTab === 'BETS'
-                  ? 'text-[#39d98a] border-[#39d98a]'
-                  : 'text-zinc-500 border-transparent hover:text-zinc-300'
-              }`}
-            >
-              <Table2 className="w-[11px] h-[11px] stroke-[2.5]" />
-              BETS
             </button>
 
             <button
@@ -331,74 +283,6 @@ export default function RightPanel({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {activeMenuTab === 'BETS' && (
-            <div className="flex h-full flex-col pt-1 font-mono" id="bets-tab-content">
-              <div className="grid grid-cols-[54px_minmax(92px,1fr)_48px_56px_58px] gap-1 px-1 pb-1 text-[8px] font-black text-zinc-500">
-                <span>DRAW</span>
-                <span>NUMBERS</span>
-                <span className="text-right">BET</span>
-                <span className="text-right">RTP</span>
-                <span className="text-right">STATUS</span>
-              </div>
-
-              {sortedTickets.length === 0 ? (
-                <div className="flex flex-1 items-center justify-center rounded border border-[#2a3c41]/20 bg-[#1f2b2e]/60 px-3 text-center text-[10px] font-bold tracking-wide text-zinc-500">
-                  NO BETS YET
-                </div>
-              ) : (
-                <div className="space-y-[3px]">
-                  {sortedTickets.map((ticket) => {
-                    const stake = Number(ticket.betAmount || 0);
-                    const payout = Number(ticket.winAmount || 0);
-                    const rtpGain = payout - stake;
-                    const isWon = ticket.status === 'Won';
-                    const isLost = ticket.status === 'Missed';
-                    const rowClass = isWon
-                      ? 'bg-emerald-500/22 border-emerald-400/35'
-                      : isLost
-                        ? 'bg-red-500/22 border-red-400/35'
-                        : 'bg-[#1f2b2e] border-[#2a3c41]/15';
-                    const rtpClass = rtpGain > 0 ? 'text-[#39d98a]' : rtpGain < 0 ? 'text-red-300' : 'text-zinc-300';
-
-                    return (
-                      <div
-                        key={ticket.id}
-                        className={`grid grid-cols-[54px_minmax(92px,1fr)_48px_56px_58px] items-center gap-1 rounded-[4px] border p-1.5 text-[9px] ${rowClass}`}
-                        title={`Ticket ${ticket.id}`}
-                      >
-                        <span className="min-w-0 truncate font-bold text-[#39d98a]">
-                          {ticket.drawId || '-'}
-                        </span>
-                        <div className="flex min-w-0 flex-wrap gap-[2px]">
-                          {ticket.selectedNumbers.map((num) => {
-                            const matched = ticket.matchedNumbers?.includes(num);
-                            return (
-                              <span
-                                key={`${ticket.id}-${num}`}
-                                className={`flex h-[14px] min-w-[15px] items-center justify-center rounded-[2px] px-[2px] text-[8px] font-black ${
-                                  matched ? 'bg-[#39d98a] text-[#07110d]' : 'bg-[#11191a] text-[#bfccd0]'
-                                }`}
-                              >
-                                {num}
-                              </span>
-                            );
-                          })}
-                        </div>
-                        <span className="text-right font-bold text-zinc-300">{formatMoney(stake)}</span>
-                        <span className={`text-right font-black ${rtpClass}`}>
-                          {rtpGain > 0 ? '+' : ''}{formatMoney(rtpGain)}
-                        </span>
-                        <span className="text-right font-black text-zinc-100">
-                          {ticket.status === 'Waiting' ? 'WAIT' : ticket.status.toUpperCase()}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           )}
         </div>
