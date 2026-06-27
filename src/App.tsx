@@ -210,7 +210,7 @@ export default function App() {
   const [windowWidth, setWindowWidth] = useState<number>(
     typeof window !== 'undefined' ? window.innerWidth : 1024
   );
-  const [mobileActiveTab, setMobileActiveTab] = useState<'GAME' | 'HISTORY' | 'RESULTS' | 'STATISTICS' | 'LEADERS'>('GAME');
+  const [mobileActiveTab, setMobileActiveTab] = useState<'GAME' | 'HISTORY' | 'RESULTS' | 'STATISTICS' | 'LEADERS' | 'BETS'>('GAME');
 
   useEffect(() => {
     const handleResize = () => {
@@ -1170,6 +1170,7 @@ export default function App() {
                 leaders={leaders}
                 hotNumbers={hotNumbers}
                 coldNumbers={coldNumbers}
+                tickets={tickets}
                 isDrawing={isDrawing}
                 activeDrawnNumbers={activeDrawnNumbers}
                 drawId={displayedDrawId}
@@ -1211,7 +1212,7 @@ export default function App() {
 
             {/* 2. Scrollable tabs below the game area */}
             <div className="flex items-center gap-1 overflow-x-auto scrollbar-none border-b border-[#202d31]/35 pb-[2px] mt-3.5 w-full uppercase" id="mobile-tabs-container">
-              {(['GAME', 'HISTORY', 'RESULTS', 'STATISTICS', 'LEADERS'] as const).map((tab) => {
+              {(['GAME', 'HISTORY', 'BETS', 'RESULTS', 'STATISTICS', 'LEADERS'] as const).map((tab) => {
                 const isActive = mobileActiveTab === tab;
                 return (
                   <button
@@ -1264,6 +1265,7 @@ export default function App() {
                   leaders={leaders}
                   hotNumbers={hotNumbers}
                   coldNumbers={coldNumbers}
+                  tickets={tickets}
                   isDrawing={isDrawing}
                   activeDrawnNumbers={activeDrawnNumbers}
                   drawId={displayedDrawId}
@@ -1278,6 +1280,7 @@ export default function App() {
                   leaders={leaders}
                   hotNumbers={hotNumbers}
                   coldNumbers={coldNumbers}
+                  tickets={tickets}
                   isDrawing={isDrawing}
                   activeDrawnNumbers={activeDrawnNumbers}
                   drawId={displayedDrawId}
@@ -1292,11 +1295,27 @@ export default function App() {
                   leaders={leaders}
                   hotNumbers={hotNumbers}
                   coldNumbers={coldNumbers}
+                  tickets={tickets}
                   isDrawing={isDrawing}
                   activeDrawnNumbers={activeDrawnNumbers}
                   drawId={displayedDrawId}
                   onSelectHistoricCombination={handleSelectHistoricCombination}
                   forceTab="LEADERS"
+                  hideHeaderAndQuickMenu
+                />
+              )}
+              {mobileActiveTab === 'BETS' && (
+                <RightPanel
+                  drawResults={drawResults}
+                  leaders={leaders}
+                  hotNumbers={hotNumbers}
+                  coldNumbers={coldNumbers}
+                  tickets={tickets}
+                  isDrawing={isDrawing}
+                  activeDrawnNumbers={activeDrawnNumbers}
+                  drawId={displayedDrawId}
+                  onSelectHistoricCombination={handleSelectHistoricCombination}
+                  forceTab="BETS"
                   hideHeaderAndQuickMenu
                 />
               )}
